@@ -57,7 +57,13 @@ def sortStderrMessages (messages):
     warningMsgList = []
     errorMsgList = []
     for line in StringIO.StringIO(messages):
-        if line.lower().startswith('error:'):
+        lineItems = line.split(':')
+        item0 = lineItems[0].strip().lower()
+        if len(lineItems) > 3 :
+            item3 = lineItems[3].strip().lower()
+        else:
+            item3 = ''
+        if item0 == 'error' or item3 == 'error' :
             if warningMsg.strip()!='':
                 warningMsgList.append(warningMsg.strip())
                 warningMsg = ''
@@ -65,8 +71,8 @@ def sortStderrMessages (messages):
                 errorMsgList.append(errorMsg.strip())
                 errorMsg = ''
             msgType = 'error'
-            errorMsg = warningMsg + line[7:] + '\n'
-        elif line.lower().startswith('warning:'):
+            errorMsg = errorMsg + line + '\n'
+        elif item0 == 'warning' or item3 == 'warning':
             if warningMsg.strip()!='':
                 warningMsgList.append(warningMsg.strip())
                 warningMsg = ''
@@ -74,7 +80,7 @@ def sortStderrMessages (messages):
                 errorMsgList.append(errorMsg.strip())
                 errorMsg = ''
             msgType = 'warning'
-            warningMsg = warningMsg + line[9:] + '\n'
+            warningMsg = warningMsg + line + '\n'
         else:
             if msgType == 'warning':
                 warningMsg = warningMsg + line + '\n'
