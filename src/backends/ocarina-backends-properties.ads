@@ -8,23 +8,21 @@
 --                                                                          --
 --    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
 --                                                                          --
--- Ocarina  is free software;  you  can  redistribute  it and/or  modify    --
--- it under terms of the GNU General Public License as published by the     --
--- Free Software Foundation; either version 2, or (at your option) any      --
--- later version. Ocarina is distributed  in  the  hope  that it will be    --
--- useful, but WITHOUT ANY WARRANTY;  without even the implied warranty of  --
--- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General --
--- Public License for more details. You should have received  a copy of the --
--- GNU General Public License distributed with Ocarina; see file COPYING.   --
--- If not, write to the Free Software Foundation, 51 Franklin Street, Fifth --
--- Floor, Boston, MA 02111-1301, USA.                                       --
+-- Ocarina  is free software; you can redistribute it and/or modify under   --
+-- terms of the  GNU General Public License as published  by the Free Soft- --
+-- ware  Foundation;  either version 3,  or (at your option) any later ver- --
+-- sion. Ocarina is distributed in the hope that it will be useful, but     --
+-- WITHOUT ANY WARRANTY; without even the implied warranty of               --
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                     --
 --                                                                          --
--- As a special exception,  if other files  instantiate  generics from this --
--- unit, or you link  this unit with other files  to produce an executable, --
--- this  unit  does not  by itself cause  the resulting  executable to be   --
--- covered  by the  GNU  General  Public  License. This exception does not  --
--- however invalidate  any other reasons why the executable file might be   --
--- covered by the GNU Public License.                                       --
+-- As a special exception under Section 7 of GPL version 3, you are granted --
+-- additional permissions described in the GCC Runtime Library Exception,   --
+-- version 3.1, as published by the Free Software Foundation.               --
+--                                                                          --
+-- You should have received a copy of the GNU General Public License and    --
+-- a copy of the GCC Runtime Library Exception along with this program;     --
+-- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
+-- <http://www.gnu.org/licenses/>.                                          --
 --                                                                          --
 --                 Ocarina is maintained by the TASTE project               --
 --                      (taste-users@lists.tuxfamily.org)                   --
@@ -38,9 +36,16 @@
 package Ocarina.Backends.Properties is
 
    type Name_Array is array (Nat range <>) of Name_Id;
+   Empty_Name_Array : constant Name_Array;
+
    type ULL_Array is array (Nat range <>) of Unsigned_Long_Long;
+   Empty_ULL_Array  : constant ULL_Array;
+
    type LL_Array is array (Nat range <>) of Long_Long;
+   Empty_LL_Array   : constant LL_Array;
+
    type LD_Array is array (Nat range <>) of Long_Double;
+   Empty_LD_Array   : constant LD_Array;
 
    --  Common types to several components and entities
 
@@ -239,19 +244,16 @@ package Ocarina.Backends.Properties is
       Access_By_Method,
       Access_None);
 
-   type Supported_Concurrency_Control_Protocol is
-     (Concurrency_NoneSpecified,
-      Concurrency_Read_Only,
-      Concurrency_Protected_Access,
-      Concurrency_Immediate_Priority_Ceiling,
-      Concurrency_Priority_Inheritance,
-      Concurrency_Priority_Ceiling);
+   type Supported_Concurrency_Control_Protocol is --  XXX
+     (None_Specified,
+      Priority_Inheritance,
+      Priority_Ceiling);
 
    type Supported_IEEE754_Precision is
      (Precision_Simple, Precision_Double, Precision_None);
 
    type Supported_Number_Representation is
-     (Representation_Signed, Representation_Unsigned, Representation_None);
+     (Signed, Unsigned, None);
 
    function Get_Base_Type (D : Node_Id) return List_Id;
    --  Return the component instance that defines the base data type

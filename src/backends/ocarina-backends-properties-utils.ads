@@ -6,32 +6,63 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                     Copyright (C) 2014 ESA & ISAE.                       --
+--                   Copyright (C) 2014-2015 ESA & ISAE.                    --
 --                                                                          --
--- Ocarina  is free software;  you  can  redistribute  it and/or  modify    --
--- it under terms of the GNU General Public License as published by the     --
--- Free Software Foundation; either version 2, or (at your option) any      --
--- later version. Ocarina is distributed  in  the  hope  that it will be    --
--- useful, but WITHOUT ANY WARRANTY;  without even the implied warranty of  --
--- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General --
--- Public License for more details. You should have received  a copy of the --
--- GNU General Public License distributed with Ocarina; see file COPYING.   --
--- If not, write to the Free Software Foundation, 51 Franklin Street, Fifth --
--- Floor, Boston, MA 02111-1301, USA.                                       --
+-- Ocarina  is free software; you can redistribute it and/or modify under   --
+-- terms of the  GNU General Public License as published  by the Free Soft- --
+-- ware  Foundation;  either version 3,  or (at your option) any later ver- --
+-- sion. Ocarina is distributed in the hope that it will be useful, but     --
+-- WITHOUT ANY WARRANTY; without even the implied warranty of               --
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                     --
 --                                                                          --
--- As a special exception,  if other files  instantiate  generics from this --
--- unit, or you link  this unit with other files  to produce an executable, --
--- this  unit  does not  by itself cause  the resulting  executable to be   --
--- covered  by the  GNU  General  Public  License. This exception does not  --
--- however invalidate  any other reasons why the executable file might be   --
--- covered by the GNU Public License.                                       --
+-- As a special exception under Section 7 of GPL version 3, you are granted --
+-- additional permissions described in the GCC Runtime Library Exception,   --
+-- version 3.1, as published by the Free Software Foundation.               --
+--                                                                          --
+-- You should have received a copy of the GNU General Public License and    --
+-- a copy of the GCC Runtime Library Exception along with this program;     --
+-- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
+-- <http://www.gnu.org/licenses/>.                                          --
 --                                                                          --
 --                 Ocarina is maintained by the TASTE project               --
 --                      (taste-users@lists.tuxfamily.org)                   --
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with GNAT.OS_Lib; use GNAT.OS_Lib;
+with Ocarina.AADL_Values; use Ocarina.AADL_Values;
+with Ocarina.Backends.Properties; use Ocarina.Backends.Properties;
+
 package Ocarina.Backends.Properties.Utils is
+
+   --  This package proposes various generic accessor to ease the
+   --  retrieval of property values.
+
+   --  This high-level accessor return a GNAT.OS_Lib.String_List made
+   --  of the name of the property in lower case, followed by a list
+   --  of strings representing the property value. E.g.
+   --
+   --  ("source_stack_size", "13952 Bytes")
+   --  ("Deadline", "500 Ms")
+   --  ("Compute_Execution_Time", "0 Ms .. 3 Ms")
+   --  ("Dispatch_Offset", "100 Ms")
+   --  ("Period", "500 Ms")
+   --  ("Dispatch_Protocol", "Periodic")
+
+   function Check_And_Get_Property
+     (E : Node_Id;
+      Prop_Name : Name_Id)
+     return String_List;
+
+   function Check_And_Get_Property
+     (E : Node_Id;
+      Property : Node_Id)
+     return String_List;
+
+   --  The following accessors takes as parameters the following entities
+   --  * E: entity from the instance tree for which we look for a property
+   --  * Property_Name: name of the property we are looking for, in
+   --    lower case
 
    function Check_And_Get_Property
      (E : Node_Id;
@@ -70,7 +101,50 @@ package Ocarina.Backends.Properties.Utils is
       Default_Value : Int := Int'First)
      return Int;
 
-   --  Check Property_Name is set on node E, if so returns its value
-   --  otherwise return the default value.
+   function Check_And_Get_Property
+     (E : Node_Id;
+      Property_Name : Name_Id)
+     return Name_Array;
+
+   generic
+      type Elt_Type is private;
+      type Elt_Array is array (Nat range <>) of Elt_Type;
+      with function Extract_Value (V : Value_Type) return Elt_Type;
+      Default_Value : Elt_Array;
+
+   function Check_And_Get_Property_Generic
+     (E : Node_Id;
+      Property_Name : Name_Id)
+     return Elt_Array;
+
+   function Check_And_Get_Property
+     (E : Node_Id;
+      Property_Name : Name_Id)
+     return ULL_Array;
+
+   function Check_And_Get_Property
+     (E : Node_Id;
+      Property_Name : Name_Id)
+     return LL_Array;
+
+   function Check_And_Get_Property
+     (E : Node_Id;
+      Property_Name : Name_Id)
+     return LD_Array;
+
+   generic
+      type T is (<>);
+   function Check_And_Get_Property_Enumerator
+     (E : Node_Id;
+      Property_Name : Name_Id)
+     return T;
+
+   generic
+      type T is (<>);
+      Default_Value : T;
+   function Check_And_Get_Property_Enumerator_With_Default
+     (E : Node_Id;
+      Property_Name : Name_Id)
+     return T;
 
 end Ocarina.Backends.Properties.Utils;

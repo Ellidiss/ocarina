@@ -6,25 +6,23 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2014 ESA & ISAE.      --
+--    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
 --                                                                          --
--- Ocarina  is free software;  you  can  redistribute  it and/or  modify    --
--- it under terms of the GNU General Public License as published by the     --
--- Free Software Foundation; either version 2, or (at your option) any      --
--- later version. Ocarina is distributed  in  the  hope  that it will be    --
--- useful, but WITHOUT ANY WARRANTY;  without even the implied warranty of  --
--- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General --
--- Public License for more details. You should have received  a copy of the --
--- GNU General Public License distributed with Ocarina; see file COPYING.   --
--- If not, write to the Free Software Foundation, 51 Franklin Street, Fifth --
--- Floor, Boston, MA 02111-1301, USA.                                       --
+-- Ocarina  is free software; you can redistribute it and/or modify under   --
+-- terms of the  GNU General Public License as published  by the Free Soft- --
+-- ware  Foundation;  either version 3,  or (at your option) any later ver- --
+-- sion. Ocarina is distributed in the hope that it will be useful, but     --
+-- WITHOUT ANY WARRANTY; without even the implied warranty of               --
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                     --
 --                                                                          --
--- As a special exception,  if other files  instantiate  generics from this --
--- unit, or you link  this unit with other files  to produce an executable, --
--- this  unit  does not  by itself cause  the resulting  executable to be   --
--- covered  by the  GNU  General  Public  License. This exception does not  --
--- however invalidate  any other reasons why the executable file might be   --
--- covered by the GNU Public License.                                       --
+-- As a special exception under Section 7 of GPL version 3, you are granted --
+-- additional permissions described in the GCC Runtime Library Exception,   --
+-- version 3.1, as published by the Free Software Foundation.               --
+--                                                                          --
+-- You should have received a copy of the GNU General Public License and    --
+-- a copy of the GCC Runtime Library Exception along with this program;     --
+-- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
+-- <http://www.gnu.org/licenses/>.                                          --
 --                                                                          --
 --                 Ocarina is maintained by the TASTE project               --
 --                      (taste-users@lists.tuxfamily.org)                   --
@@ -1629,8 +1627,8 @@ package body Ocarina.Backends.C_Tree.Nutils is
       N             : Node_Id;
       F             : Node_Id;
       M             : Node_Id;
-      Owner         : Node_Id;
       Declaration   : Node_Id;
+      Data_Accessed : Node_Id;
       Hybrid        : constant Boolean :=
         AINU.Is_Subprogram (Caller)
         and then
@@ -1666,15 +1664,23 @@ package body Ocarina.Backends.C_Tree.Nutils is
             F := AIN.First_Node (AIN.Features (Spg));
             while Present (F) loop
                if Kind (F) = K_Subcomponent_Access_Instance
-                 and then Get_Current_Backend_Kind = PolyORB_Kernel_C
                then
                   --  This case is specific to POK since we don't
                   --  handle the shared data with the same patterns as
                   --  in PolyORB-HI-C. This could be updated later.
+                  Data_Accessed := Get_Accessed_Data (F);
+
+                  if Data_Accessed = No_Node then
+                     Display_Located_Error
+                       (AIN.Loc (F),
+                        "is not properly conected to" &
+                        " any source",
+                        Fatal => True);
+                  end if;
 
                   Param_Value :=
                     Make_Variable_Address
-                      (Map_C_Defining_Identifier (Get_Accessed_Data (F)));
+                      (Map_C_Defining_Identifier (Data_Accessed));
 
                   Append_Node_To_List (Param_Value, Call_Profile);
 
@@ -1926,15 +1932,6 @@ package body Ocarina.Backends.C_Tree.Nutils is
 
             N := Message_Comment ("Invoking method");
             CTU.Append_Node_To_List (N, Statements);
-            Owner := Get_Actual_Owner (Spg_Call);
-
-            N :=
-              Make_Variable_Address
-                (CTN.Defining_Identifier
-                   (CTN.Object_Node (Backend_Node (Identifier (Owner)))));
-
-            Append_Node_To_List (N, Call_Profile);
-
             --  The name of the called subprogram is deduced from the
             --  corresponding subprogram spec instance (last element
             --  of the 'Path' list) and from the actual data component

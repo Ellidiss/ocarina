@@ -6,25 +6,23 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---    Copyright (C) 2006-2009 Telecom ParisTech, 2010-2014 ESA & ISAE.      --
+--    Copyright (C) 2006-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
 --                                                                          --
--- Ocarina  is free software;  you  can  redistribute  it and/or  modify    --
--- it under terms of the GNU General Public License as published by the     --
--- Free Software Foundation; either version 2, or (at your option) any      --
--- later version. Ocarina is distributed  in  the  hope  that it will be    --
--- useful, but WITHOUT ANY WARRANTY;  without even the implied warranty of  --
--- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General --
--- Public License for more details. You should have received  a copy of the --
--- GNU General Public License distributed with Ocarina; see file COPYING.   --
--- If not, write to the Free Software Foundation, 51 Franklin Street, Fifth --
--- Floor, Boston, MA 02111-1301, USA.                                       --
+-- Ocarina  is free software; you can redistribute it and/or modify under   --
+-- terms of the  GNU General Public License as published  by the Free Soft- --
+-- ware  Foundation;  either version 3,  or (at your option) any later ver- --
+-- sion. Ocarina is distributed in the hope that it will be useful, but     --
+-- WITHOUT ANY WARRANTY; without even the implied warranty of               --
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                     --
 --                                                                          --
--- As a special exception,  if other files  instantiate  generics from this --
--- unit, or you link  this unit with other files  to produce an executable, --
--- this  unit  does not  by itself cause  the resulting  executable to be   --
--- covered  by the  GNU  General  Public  License. This exception does not  --
--- however invalidate  any other reasons why the executable file might be   --
--- covered by the GNU Public License.                                       --
+-- As a special exception under Section 7 of GPL version 3, you are granted --
+-- additional permissions described in the GCC Runtime Library Exception,   --
+-- version 3.1, as published by the Free Software Foundation.               --
+--                                                                          --
+-- You should have received a copy of the GNU General Public License and    --
+-- a copy of the GCC Runtime Library Exception along with this program;     --
+-- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
+-- <http://www.gnu.org/licenses/>.                                          --
 --                                                                          --
 --                 Ocarina is maintained by the TASTE project               --
 --                      (taste-users@lists.tuxfamily.org)                   --
@@ -616,7 +614,8 @@ package body Ocarina.Backends.PO_HI_Ada.Activity is
          N :=
            Make_Package_Instantiation
              (Defining_Identifier => Map_Task_Identifier (E),
-              Generic_Package     => RU (RU_PolyORB_HI_Periodic_Task),
+              Generic_Package     =>
+                RU (RU_PolyORB_HI_Periodic_Task, Elaborated => True),
               Parameter_List      => Parameter_List);
          return N;
       end Periodic_Task_Instantiation;
@@ -676,7 +675,8 @@ package body Ocarina.Backends.PO_HI_Ada.Activity is
          N :=
            Make_Package_Instantiation
              (Defining_Identifier => Map_Task_Identifier (E),
-              Generic_Package     => RU (RU_PolyORB_HI_Sporadic_Task),
+              Generic_Package     =>
+                RU (RU_PolyORB_HI_Sporadic_Task, Elaborated => True),
               Parameter_List      => Parameter_List);
          return N;
       end Sporadic_Task_Instantiation;
@@ -735,7 +735,8 @@ package body Ocarina.Backends.PO_HI_Ada.Activity is
          N :=
            Make_Package_Instantiation
              (Defining_Identifier => Map_Task_Identifier (E),
-              Generic_Package     => RU (RU_PolyORB_HI_Aperiodic_Task),
+              Generic_Package     =>
+                RU (RU_PolyORB_HI_Aperiodic_Task, Elaborated => True),
               Parameter_List      => Parameter_List);
          return N;
       end Aperiodic_Task_Instantiation;
@@ -757,7 +758,8 @@ package body Ocarina.Backends.PO_HI_Ada.Activity is
          N :=
            Make_Package_Instantiation
              (Defining_Identifier => Map_Task_Identifier (E),
-              Generic_Package     => RU (RU_PolyORB_HI_Background_Task),
+              Generic_Package     =>
+                RU (RU_PolyORB_HI_Background_Task, Elaborated => True),
               Parameter_List      => Parameter_List);
          return N;
       end Background_Task_Instantiation;
@@ -800,10 +802,8 @@ package body Ocarina.Backends.PO_HI_Ada.Activity is
                Fatal => True);
          end if;
 
-         N := Make_Withed_Package (RU (RU_Ada_Interrupts_Names));
-         Append_Node_To_List (N, ADN.Withed_Packages (Current_Package));
-         N := Make_Used_Package (RU (RU_Ada_Interrupts_Names));
-         Append_Node_To_List (N, ADN.Visible_Part (Current_Package));
+         Add_With_Package (RU (RU_Ada_Interrupts_Names));
+         Add_With_Package (RU (RU_Ada_Interrupts_Names));
 
          N :=
            Make_Parameter_Association
@@ -1099,6 +1099,21 @@ package body Ocarina.Backends.PO_HI_Ada.Activity is
                   --  Link the variable and the object
 
                   Bind_AADL_To_Object (Identifier (S), N);
+
+                  if Get_Concurrency_Protocol (Corresponding_Instance (S))
+                    = Priority_Ceiling
+                  then
+                     --  XXX For now, we disable SPARK_Mode due to the
+                     --  inability of SPARK GPL2015 to support
+                     --  variable that denotes protected objects.
+
+                     N := Make_Pragma_Statement
+                       (Pragma_SPARK_Mode, Make_List_Id (RE (RE_Off)));
+
+                     Append_Node_To_List
+                       (N, ADN.Package_Headers (Current_Package));
+                  end if;
+
                else
                   --  Visit the component instance corresponding to the
                   --  subcomponent S.
@@ -3797,6 +3812,19 @@ package body Ocarina.Backends.PO_HI_Ada.Activity is
                    (ADN.Marshall_Node (Backend_Node (Identifier (E)))));
             Append_Node_To_List (N, Inst_Profile);
 
+            --  The 'Send' generic formal
+
+            N :=
+              Make_Parameter_Association
+                (Make_Defining_Identifier (SN (S_Send)),
+                 Extract_Designator
+                   (ADN.Send_Node
+                      (Backend_Node (Identifier
+                                       (Corresponding_Instance
+                                          (Get_Container_Process
+                                             (Parent_Subcomponent (E))))))));
+            Append_Node_To_List (N, Inst_Profile);
+
             --  The 'Next_Deadline' genertic formal
 
             N :=
@@ -3807,26 +3835,12 @@ package body Ocarina.Backends.PO_HI_Ada.Activity is
                     Make_Defining_Identifier (SN (S_Next_Deadline))));
             Append_Node_To_List (N, Inst_Profile);
 
-            --  We do not want a pragma Elaborate_All to be
-            --  implicitely generated for
-            --  PolyORB_HI.Thread_Interrogators because we know there
-            --  is no elaboration problem betweeb Activity and
-            --  Thread_Interrogators and also to avoid cyclic
-            --  elaboration dependency to be introduced.
-
-            N :=
-              Make_Pragma_Statement
-                (Pragma_Suppress,
-                 Make_List_Id
-                   (Make_Defining_Identifier (PN (P_Elaboration_Check)),
-                    RU (RU_PolyORB_HI_Thread_Interrogators)));
-            Append_Node_To_List (N, ADN.Statements (Current_Package));
-
             N :=
               Make_Package_Instantiation
                 (Defining_Identifier =>
                    Make_Defining_Identifier (Map_Interrogators_Name (E)),
-                 Generic_Package => RU (RU_PolyORB_HI_Thread_Interrogators),
+                 Generic_Package =>
+                   RU (RU_PolyORB_HI_Thread_Interrogators, Elaborated => True),
                  Parameter_List  => Inst_Profile);
 
             Append_Node_To_List (N, ADN.Statements (Current_Package));
@@ -4314,6 +4328,24 @@ package body Ocarina.Backends.PO_HI_Ada.Activity is
          if not AINU.Is_Empty (Subcomponents (E)) then
             S := First_Node (Subcomponents (E));
             while Present (S) loop
+               --  If the process has a data subcomponent, then map a
+               --  shared variable.
+
+               if AINU.Is_Data (Corresponding_Instance (S))
+                 and then Get_Concurrency_Protocol (Corresponding_Instance (S))
+                 = Priority_Ceiling
+               then
+                  --  XXX For now, we disable SPARK_Mode due to the
+                  --  inability of SPARK GPL2015 to support
+                  --  variable that denotes protected objects.
+
+                  N := Make_Pragma_Statement
+                    (Pragma_SPARK_Mode, Make_List_Id (RE (RE_Off)));
+
+                  Append_Node_To_List
+                    (N, ADN.Package_Headers (Current_Package));
+               end if;
+
                --  Visit the component instance corresponding to the
                --  subcomponent S.
 
