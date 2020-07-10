@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
+--    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2020 ESA & ISAE.      --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -50,28 +50,31 @@ package Ocarina.Backends is
       AADL,
       AADL_Min,
       AADL_Annex,
+      SpaceStudio,
       AADLXML,
       ASN1_Deployment,
       Behavior_PP,
       Bound_T,
-      Carts_XML,
       Cheddar_XML,
       Deos_XML,
       Vxworks653_XML,
       Connection_Matrix_Analysis,
       Functions_Matrix_Analysis,
+      Lnt_S,
       MAST_Scheduling,
       Petri_Nets,
       PolyORB_HI_Ada,
       PolyORB_HI_C,
-      PolyORB_HI_RTSJ,
       PolyORB_Kernel_C,
       Statistics,
       Subprograms_Generator,
       Xtratum_Configuration,
       REAL_PP,
       REAL_Theorem,
-      Alloy_Backend);
+      FT_Replication,
+      Alloy_Backend,
+      AIR_Configuration_Backend
+     );
    --  Supported code generators. For each kind, at most one generator
    --  must be implemented.
 
@@ -90,6 +93,10 @@ package Ocarina.Backends is
    --  set in the command line. If the backend name and the current
    --  backend name are set, backend name has the priority.
 
+   function Get_Backend (Backend_Name : Name_Id := No_Name) return Natural;
+   --  Return the index of the backend corresponding to the given
+   --  name. 0 means no backend was found.
+
    procedure Init;
    --  Initialize the Backends module by registering the several
    --  implemented code generators.
@@ -98,7 +105,23 @@ package Ocarina.Backends is
    --  Resets the Backends module by resetting the node entries of
    --  the several trees.
 
-   procedure Usage;
-   --  Print usage for all registered backends
+   procedure Write_Backends (Indent : Natural);
+   --  Displays the list of registered generators each one on a new
+   --  line indented by 'Indent'.
+
+   Generated_Sources_Directory : Name_Id := No_Name;
+   --  Generated code will be in this directory
+
+   Scenario_Dir : String_Ptr;
+   --  Path to scenario directory, required to get source path to user code
+
+   SCM_Version : String_Ptr;
+
+   Compile_Generated_Sources : aliased Boolean := False;
+   Remove_Generated_Sources  : aliased Boolean := False;
+   Do_Coverage_Test          : aliased Boolean := False;
+   Do_Regression_Test        : aliased Boolean := False;
+   Generate_ASN1_Deployment  : aliased Boolean := False;
+   Add_Performance_Analysis  : aliased Boolean := False;
 
 end Ocarina.Backends;

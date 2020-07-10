@@ -57,13 +57,15 @@ TREE_PIDL_SPECS = src/core/tree/ocarina-me_aadl-aadl_tree-nodes.idl	\
 	src/core/tree/ocarina-me_aadl-aadl_instances-nodes.idl		\
 	src/core/tree/ocarina-me_aadl_ba-ba_tree-nodes.idl		\
 	src/core/tree/ocarina-me_real-real_tree-nodes.idl		\
+	src/core/tree/ocarina-me_ao4aadl-ao4aadl_tree-nodes.idl		\
+	src/core/tree/ocarina-me_aadl_ema-ema_tree-nodes.idl            \
 	src/backends/ocarina-backends-ada_tree-nodes.idl		\
 	src/backends/ocarina-backends-c_tree-nodes.idl			\
 	src/backends/ocarina-backends-asn1_tree-nodes.idl		\
 	src/backends/ocarina-backends-xml_tree-nodes.idl		\
 	src/backends/ocarina-backends-pn-nodes.idl			\
-	src/backends/ocarina-backends-mast_tree-nodes.idl		\
-	src/backends/ocarina-backends-rtsj_tree-nodes.idl
+	src/backends/ocarina-backends-lnt-nodes.idl			\
+	src/backends/ocarina-backends-mast_tree-nodes.idl
 
 TREE_ADA_SPECS = ${addprefix $(top_builddir)/, $(TREE_PIDL_SPECS:.idl=.ads)}
 TREE_ADA_BODIES = ${addprefix $(top_builddir)/, $(TREE_PIDL_SPECS:.idl=.adb)}
@@ -93,11 +95,23 @@ PARALLEL_GNATMAKE_FLAGS = -j4
 all-local: $(BUILD_DIRS) maybe-generate-tree-files $(PYTHON_TARGET) $(BUILD_STAMPS)
 
 $(BUILD_STAMPS): %-build:
-	$(INIT_ADA_PROJECT_PATH) $(GNATMAKE_FOR_TARGET) \
+	$(INIT_ADA_PROJECT_PATH) $(GPRBUILD) \
 	  $(PARALLEL_GNATMAKE_FLAGS) -P $* $(GNATFLAGS) $(GNAT_LIB_FLAGS) \
 	  -XABS_SRC_DIR="$(PL_DEP_ABS_SRC_DIR)" \
 	  -XABS_BUILD_DIR="$(PL_DEP_ABS_BUILD_DIR)" \
 	  $(AP_FLAGS);
+
+gnatcheck: %-build:
+	ADA_PROJECT_PATH=$(top_srcdir)/projects:$(ADA_PROJECT_PATH) \
+	gnat check -Pocarina-main.gpr -U $(GNATFLAGS)  \
+	  -XABS_SRC_DIR="$(PL_DEP_ABS_SRC_DIR)" \
+	  -XABS_BUILD_DIR="$(PL_DEP_ABS_BUILD_DIR)"
+
+gnatmetric: %-build:
+	ADA_PROJECT_PATH=$(top_srcdir)/projects:$(ADA_PROJECT_PATH) \
+	gnat metric -Pocarina-main.gpr -U $(GNATFLAGS)  \
+	  -XABS_SRC_DIR="$(PL_DEP_ABS_SRC_DIR)" \
+	  -XABS_BUILD_DIR="$(PL_DEP_ABS_BUILD_DIR)"
 
 clean-local: $(BUILD_DIRS) $(CLEAN_STAMPS) clean-mknodes
 
@@ -105,12 +119,10 @@ clean-local: $(BUILD_DIRS) $(CLEAN_STAMPS) clean-mknodes
 # gnatclean that requires this file to be present to delete files ...
 
 $(CLEAN_STAMPS): %-clean:
-	touch $(top_builddir)/src/config/ocarina-configuration.adb
 	$(INIT_ADA_PROJECT_PATH) $(GNATCLEAN) -P $* $(GNATFLAGS) $(GNAT_LIB_FLAGS)\
 	  -XABS_SRC_DIR="$(PL_DEP_ABS_SRC_DIR)" \
 	  -XABS_BUILD_DIR="$(PL_DEP_ABS_BUILD_DIR)" \
 	  $(AP_FLAGS) ;
-	rm $(top_builddir)/src/config/ocarina-configuration.adb
 
 distclean-local:
 	for d in $(BUILD_DIRS); do \
@@ -136,7 +148,7 @@ build-mknodes:
 	if [ -f $(MKNODES_SRC_DIR)/mknodes.gpr ]; then \
 	   mkdir -p $(MKNODES_BUILD_DIR)/objects; \
 	   $(INIT_ADA_PROJECT_PATH) \
-	     $(GNATMAKE) -P $(MKNODES_SRC_DIR)/mknodes.gpr \
+	     $(GPRBUILD) -P $(MKNODES_SRC_DIR)/mknodes.gpr \
 	     -XABS_SRC_DIR="$(PL_DEP_ABS_SRC_DIR)" \
 	     -XABS_BUILD_DIR="$(PL_DEP_ABS_BUILD_DIR)" \
 	     $(AP_FLAGS) \

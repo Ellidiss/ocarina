@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
+--    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2018 ESA & ISAE.      --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,9 +29,9 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Locations; use Locations;
-with Ocarina.Namet;     use Ocarina.Namet;
-with Utils;     use Utils;
+with Locations;     use Locations;
+with Ocarina.Namet; use Ocarina.Namet;
+with Utils;         use Utils;
 
 with Ocarina.ME_AADL.AADL_Tree.Nodes;
 with Ocarina.ME_AADL.AADL_Instances.Nodes;
@@ -193,11 +193,11 @@ package body Ocarina.Backends.Expander is
                         end if;
 
                         Append_Node_To_List
-                          (Make_Node_Container (L),
+                          (Make_Node_Container (L, Extra_Item (K)),
                            Sources (N));
 
                         Append_Node_To_List
-                          (Make_Node_Container (N),
+                          (Make_Node_Container (N, Extra_Item (K)),
                            Destinations (L));
                      end if;
 
@@ -227,11 +227,11 @@ package body Ocarina.Backends.Expander is
                         end if;
 
                         Append_Node_To_List
-                          (Make_Node_Container (L),
+                          (Make_Node_Container (L, Extra_Item (K)),
                            Destinations (N));
 
                         Append_Node_To_List
-                          (Make_Node_Container (N),
+                          (Make_Node_Container (N, Extra_Item (K)),
                            Sources (L));
                      end if;
 
@@ -278,7 +278,6 @@ package body Ocarina.Backends.Expander is
       Data_Representation : Supported_Data_Representation;
       S                   : Node_Id;
 
-      use Ocarina.ME_AADL.AADL_Tree.Nodes;
    begin
       --  Expand all the subcomponents of the data
 

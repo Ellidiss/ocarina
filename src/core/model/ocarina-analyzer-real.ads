@@ -59,7 +59,7 @@ package Ocarina.Analyzer.REAL is
    --  Name of the main theorem to be evaluated, by default evaluate
    --  all theorems.
 
-   Continue_Evaluation : Boolean := False;
+   Continue_Evaluation : aliased Boolean := False;
    --  In case of a theorem evaluates to false, continue the
    --  evaluation.
 

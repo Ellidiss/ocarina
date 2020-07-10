@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                   Copyright (C) 2013-2015 ESA & ISAE.                    --
+--                   Copyright (C) 2013-2016 ESA & ISAE.                    --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,8 +29,6 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with GNAT.OS_Lib;                use GNAT.OS_Lib;
-
 with Errors;                     use Errors;
 with Locations;                  use Locations;
 with Ocarina.Namet;              use Ocarina.Namet;
@@ -38,15 +36,16 @@ with Ocarina.Output;             use Ocarina.Output;
 with Utils;                      use Utils;
 
 with Ocarina.Analyzer;           use Ocarina.Analyzer;
+with Ocarina.Analyzer.REAL;      use Ocarina.Analyzer.REAL;
 with Ocarina.Backends;           use Ocarina.Backends;
 with Ocarina.Configuration;      use Ocarina.Configuration;
 with Ocarina.FE_AADL;            use Ocarina.FE_AADL;
 with Ocarina.FE_AADL.Parser;
+with Ocarina.FE_REAL.Parser;     use Ocarina.FE_REAL.Parser;
 with Ocarina.Instances;          use Ocarina.Instances;
 with Ocarina.Parser;             use Ocarina.Parser;
 with Ocarina.Options;            use Ocarina.Options;
 with Ocarina.Files;              use Ocarina.Files;
-with Ocarina.Backends.Properties.Utils;
 
 package body Ocarina.Utils is
 
@@ -139,6 +138,32 @@ package body Ocarina.Utils is
       return Success;
    end Analyze;
 
+   ----------------------
+   -- Set_REAL_Theorem --
+   ----------------------
+
+   function Set_REAL_Theorem (Theorem_Name : String) return Boolean is
+   begin
+      if Theorem_Name /= "" then
+         Main_Theorem := To_Lower (Get_String_Name (Theorem_Name));
+      end if;
+
+      return True;
+   end Set_REAL_Theorem;
+
+   ----------------------
+   -- Add_REAL_Library --
+   ----------------------
+
+   function Add_REAL_Library (Library_Name : String) return Boolean is
+   begin
+      if Library_Name /= "" then
+         Write_Line ("Adding: " & Library_Name);
+         Load_REAL_Library (Get_String_Name (Library_Name));
+      end if;
+      return True;
+   end Add_REAL_Library;
+
    -----------------
    -- Instantiate --
    -----------------
@@ -180,55 +205,6 @@ package body Ocarina.Utils is
    begin
       return AADL_Root;
    end Get_AADL_Root;
-
-   ------------------------
-   -- Get_Property_Value --
-   ------------------------
-
-   procedure Get_Property_Value (Data : in out Callback_Data'Class;
-                                 PropId : String; PropName : String)
-   is
-      Result : constant String_List :=
-        Ocarina.Backends.Properties.Utils.Check_And_Get_Property
-        (Get_Node_Id_From_String (PropId),
-         Get_Node_Id_From_String (PropName));
-   begin
-      Set_Return_Value_As_List (Data);
-
-      for Elt of Result loop
-         Set_Return_Value (Data, Elt.all);
-      end loop;
-   end Get_Property_Value;
-
-   --------------------------------
-   -- Get_Property_Value_By_Name --
-   --------------------------------
-
-   procedure Get_Property_Value_By_Name (Data : in out Callback_Data'Class;
-                                         PropId : String; PropName : String)
-   is
-      Result : constant String_List :=
-        Ocarina.Backends.Properties.Utils.Check_And_Get_Property
-        (Get_Node_Id_From_String (PropId),
-         Get_String_Name (PropName));
-   begin
-      Set_Return_Value_As_List (Data);
-
-      for Elt of Result loop
-         Set_Return_Value (Data, Elt.all);
-      end loop;
-   end Get_Property_Value_By_Name;
-
-   -----------------
-   -- Get_Node_Id --
-   -----------------
-
-   procedure Get_Node_Id (Data : in out Callback_Data'Class;
-      N : String) is
-   begin
-      Set_Return_Value (Data, Integer'Image (Integer
-         (Namet.Get_String_Name (N))));
-   end Get_Node_Id;
 
    -----------------------------
    -- Get_Node_Id_From_String --

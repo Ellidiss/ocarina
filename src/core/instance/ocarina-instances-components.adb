@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---    Copyright (C) 2005-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
+--    Copyright (C) 2005-2009 Telecom ParisTech, 2010-2018 ESA & ISAE.      --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -48,16 +48,15 @@ with Ocarina.Instances.Components.Connections;
 with Ocarina.Instances.Components.Modes;
 with Ocarina.Instances.Namespaces;
 with Ocarina.Instances.Properties;
+with Ocarina.Instances.Annexes;
 with Ocarina.Instances.Messages;
 
 package body Ocarina.Instances.Components is
 
    use Locations;
 
-   use Ocarina.ME_AADL;
    use Ocarina.ME_AADL.AADL_Tree.Nodes;
    use Ocarina.ME_AADL.AADL_Instances.Nodes;
-   use Ocarina.ME_AADL.AADL_Instances.Entities;
    use Ocarina.ME_AADL.AADL_Instances.Nutils;
 
    use Ocarina.Annotations;
@@ -68,6 +67,7 @@ package body Ocarina.Instances.Components is
    use Ocarina.Instances.Components.Modes;
    use Ocarina.Instances.Namespaces;
    use Ocarina.Instances.Properties;
+   use Ocarina.Instances.Annexes;
    use Ocarina.Instances.Messages;
 
    package ATN renames Ocarina.ME_AADL.AADL_Tree.Nodes;
@@ -162,7 +162,9 @@ package body Ocarina.Instances.Components is
 
       --  (b) we instantiate recursively the parents of the component
 
-      --  (c) we apply the component properties properties
+      --  (c) we apply the component properties
+
+      --  (d) we apply the component annexes
 
       --  We chose this order because applying properties may require
       --  visibility on features that are inherited form other
@@ -186,6 +188,8 @@ package body Ocarina.Instances.Components is
       --  (g) we instantiate the modes and mode transitions
 
       --  (h) we apply the properties
+
+      --  (i) we apply the annexes
 
       --  We chose this order because instantiating connections, modes
       --  and applying properties may require visibility on subclauses
@@ -586,6 +590,19 @@ package body Ocarina.Instances.Components is
           (Instance_Root,
            New_Instance,
            ATN.Properties (Component),
+           Override_Mode => True)
+        and then Success;
+
+      --  Apply the annexes to the new instance
+
+      AIN.Set_Annexes (New_Instance,
+                       New_List (K_List_Id, No_Location));
+
+      Success :=
+        Apply_Annexes
+          (Instance_Root,
+           New_Instance,
+           ATN.Annexes (Component),
            Override_Mode => True)
         and then Success;
 

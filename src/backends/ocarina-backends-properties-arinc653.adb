@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                   Copyright (C) 2014-2015 ESA & ISAE.                    --
+--                   Copyright (C) 2014-2016 ESA & ISAE.                    --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,17 +29,17 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Ocarina.Namet; use Ocarina.Namet;
+with Ocarina.Namet;             use Ocarina.Namet;
 with Ocarina.Instances.Queries; use Ocarina.Instances.Queries;
 
 with Ocarina.ME_AADL.AADL_Tree.Nutils;
 with Ocarina.ME_AADL.AADL_Instances.Nutils;
 
-with Ocarina.AADL_Values;
-use Ocarina.AADL_Values;
+with Ocarina.AADL_Values; use Ocarina.AADL_Values;
 
-with Ocarina.ME_AADL.AADL_Tree.Nodes;
-use Ocarina.ME_AADL.AADL_Tree.Nodes;
+with Ocarina.ME_AADL.AADL_Tree.Nodes; use Ocarina.ME_AADL.AADL_Tree.Nodes;
+
+with Ocarina.Backends.Properties.Utils; use Ocarina.Backends.Properties.Utils;
 
 package body Ocarina.Backends.Properties.ARINC653 is
 
@@ -52,12 +52,15 @@ package body Ocarina.Backends.Properties.ARINC653 is
    --   Schedule_Window_Name : Name_Id;
 
    --  ARINC653::Schedule_Window associated anonymous record element term
-   Partition_Name : Name_Id;
-   Duration_Name : Name_Id;
+   Partition_Name                 : Name_Id;
+   Duration_Name                  : Name_Id;
    Periodic_Processing_Start_Name : Name_Id;
 
    --  ARINC653::Module_Schedule
    Module_Schedule_Name : Name_Id;
+
+   --  ARINC653::Partition_Identifier
+   Partition_Identifier_Name : Name_Id;
 
    procedure Init;
 
@@ -70,13 +73,16 @@ package body Ocarina.Backends.Properties.ARINC653 is
 --        Schedule_Window_Name := Get_String_Name
 --          ("arinc::schedule_window");
 
-      Module_Schedule_Name := Get_String_Name
-        ("arinc653::module_schedule");
+      Module_Schedule_Name := Get_String_Name ("arinc653::module_schedule");
 
-      Partition_Name := Get_String_Name ("partition");
-      Duration_Name := Get_String_Name ("duration");
-      Periodic_Processing_Start_Name
-        := Get_String_Name ("periodic_processing_start");
+      Partition_Name                 := Get_String_Name ("partition");
+      Duration_Name                  := Get_String_Name ("duration");
+      Periodic_Processing_Start_Name :=
+        Get_String_Name ("periodic_processing_start");
+
+      Partition_Identifier_Name :=
+        Get_String_Name ("arinc653::partition_identifier");
+
       Is_Initialized := True;
    end Init;
 
@@ -85,12 +91,12 @@ package body Ocarina.Backends.Properties.ARINC653 is
    ----------------------------------
 
    function Get_Module_Schedule_Property
-     (E : Node_Id)
-     return Schedule_Window_Record_Term_Array
+     (E : Node_Id) return Schedule_Window_Record_Term_Array
    is
-      pragma Assert (True or else
-                     AINU.Is_Processor (E) or else
-                       AINU.Is_Virtual_Processor (E));
+      pragma Assert
+        (True
+         or else AINU.Is_Processor (E)
+         or else AINU.Is_Virtual_Processor (E));
 
       Property_Value : List_Id;
 
@@ -107,7 +113,7 @@ package body Ocarina.Backends.Properties.ARINC653 is
 
       declare
          Result : Schedule_Window_Record_Term_Array
-           (1 .. ATNU.Length (Property_Value));
+         (1 .. ATNU.Length (Property_Value));
          A : Node_Id := First_Node (Property_Value);
          J : Integer := Result'First;
       begin
@@ -122,15 +128,14 @@ package body Ocarina.Backends.Properties.ARINC653 is
                      --  Partition is a component reference
 
                      Result (J).Partition :=
-                       Entity
-                       (Reference_Term (Property_Expression (L)));
+                       Entity (Reference_Term (Property_Expression (L)));
 
                   elsif Name (Identifier (L)) = Duration_Name then
-                     Result (J).Duration := Convert_Value_To_Time_Type
-                       (Property_Expression (L));
+                     Result (J).Duration :=
+                       Convert_Value_To_Time_Type (Property_Expression (L));
 
-                  elsif Name (Identifier (L))
-                    = Periodic_Processing_Start_Name
+                  elsif Name (Identifier (L)) =
+                    Periodic_Processing_Start_Name
                   then
                      --  Periodic_Processing_Start is an aadlboolean,
                      --  the corresponding Property_expression is thus
@@ -155,5 +160,17 @@ package body Ocarina.Backends.Properties.ARINC653 is
          return Result;
       end;
    end Get_Module_Schedule_Property;
+
+   ------------------------------
+   -- Get_Partition_Identifier --
+   ------------------------------
+
+   function Get_Partition_Identifier (P : Node_Id) return Unsigned_Long_Long is
+   begin
+      if not Is_Initialized then
+         Init;
+      end if;
+      return Check_And_Get_Property (P, Partition_Identifier_Name);
+   end Get_Partition_Identifier;
 
 end Ocarina.Backends.Properties.ARINC653;

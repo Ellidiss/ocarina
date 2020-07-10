@@ -43,13 +43,13 @@ package Ocarina.FE_AADL.Parser is
 
    --  Default configuration parameters for the parser
 
-   First_Parsing     : Boolean := True;
-   Add_Pre_Prop_Sets : Boolean := False;
+   Add_Pre_Prop_Sets : aliased Boolean := False;
 
    function Process
      (AADL_Root : Node_Id;
       From      : Locations.Location;
-      To        : Locations.Location := Locations.No_Location) return Node_Id;
+      To        : Locations.Location := Locations.No_Location;
+      Container : Node_Id            := No_Node) return Node_Id;
    --  Parse the file described by buffer locations and return the
    --  Node_Id or the root of the resulting AADL tree, or No_Node if
    --  the parsing failed. If AADL_Root is not No_Node, then return

@@ -1,10 +1,13 @@
 #! /usr/bin/python
 '''
-:mod:`lmp`
+:mod:`lmp` -- Port of Ellidiss LMP to Ocarina Python API
+========================================================
 
 .. moduleauthor:: Jerome Hugues, Arnaud Schach
 
-Port of Ellidiss LMP to Ocarina Python API
+
+This module is an adaptation of Ellidiss LMP "Logical Model Processing"
+to Python.
 
 '''
 
@@ -285,4 +288,3 @@ def getRoot ():
     '''
 
     return runOcarinaFunction (libocarina_python.getRoot)
-

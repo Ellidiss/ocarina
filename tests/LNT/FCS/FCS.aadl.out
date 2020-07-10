@@ -1,0 +1,130 @@
+------------------------------------------
+---------- Ocarina LNT Generator ---------
+------------------------------------------
+
+FCS.aadl:110:03: warning: FF references a component type
+FCS.aadl:111:03: warning: NL references a component type
+FCS.aadl:112:03: warning: NF references a component type
+FCS.aadl:113:03: warning: PL references a component type
+FCS.aadl:114:03: warning: PF references a component type
+FCS.aadl:115:03: warning: FL references a component type
+FCS.aadl:116:03: warning: AP references a component type
+FCS.aadl:163:04: warning: cpu_rm references a component type
+FCS.aadl:164:04: warning: operator references a component type
+FCS.aadl:165:04: warning: GPS references a component type
+FCS.aadl:166:04: warning: IMU references a component type
+FCS.aadl:167:04: warning: platform references a component type
+FCS.aadl:168:04: warning: i2c references a component type
+ocarina: Total: 0 error and 13 warnings
+Begin Thread
+Begin Processor
+Begin Types
+Begin Main
+FCS.aadl:73:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+FCS.aadl:9:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+FCS.aadl:10:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+FCS.aadl:22:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+FCS.aadl:34:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+FCS.aadl:35:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+FCS.aadl:47:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+FCS.aadl:59:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+FCS.aadl:60:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+FCS.aadl:84:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+FCS.aadl:85:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+Begin Port
+module LNT_Generic_Process_For_Port_Connections (Types) is 
+-- No Behavior Annex
+--  data port --
+   process Data_Port [
+   Input: LNT_Channel_Port, 
+   Output: LNT_Channel_Port] 
+   is 
+      var Data : LNT_Type_Data in
+         Data := EMPTY;
+         loop 
+            select 
+               Input (?Data)
+               [] 
+               Output (Data)
+            end select 
+         end loop
+      end var
+   end process
+   
+--  event port --
+--  for no periodic threads --
+   process Event_Port [
+   Input: LNT_Channel_Port, 
+   Output: LNT_Channel_Port, 
+   Notify: LNT_Channel_Event](
+   Queue_Size: Nat) 
+   is 
+      var 
+         Data : LNT_Type_Data,
+         FIFO : LNT_Type_Data_FIFO,
+         Is_New : bool
+      in 
+         FIFO := {};
+         Data := EMPTY;
+         Is_New := false; 
+         loop 
+            select 
+               Input (?Data); 
+               Is_New := true;
+               if length (FIFO) >= Queue_Size then
+                  FIFO := tail (FIFO)
+               end if;
+               FIFO := append (Data, FIFO)
+               []
+               if (FIFO != {}) then 
+                  Output (Head (FIFO));
+                  FIFO := tail (FIFO)
+               else
+                  Output (EMPTY)
+               end if
+               []
+               if (Is_New) then 
+                  Notify (Incoming_Event); 
+                  Is_New := false
+               else 
+                  Notify (No_Event)
+               end if
+            end select 
+         end loop
+      end var
+   end process
+
+-- for periodic threads
+   process Event_Port_For_Periodic [
+   Input: LNT_Channel_Port, 
+   Output: LNT_Channel_Port](
+   Queue_Size: Nat) 
+   is 
+      var 
+         Data : LNT_Type_Data,
+         FIFO : LNT_Type_Data_FIFO,
+         Is_New : bool
+      in 
+         FIFO := {};
+         Data := EMPTY;
+         Is_New := false; 
+         loop 
+            select 
+               Input (?Data); 
+               Is_New := true;
+               if length (FIFO) >= Queue_Size then
+                  FIFO := tail (FIFO)
+               end if;
+               FIFO := append (Data, FIFO)
+               []
+               if (FIFO != {}) then 
+                  Output (Head (FIFO));
+                  FIFO := tail (FIFO)
+               else
+                  Output (EMPTY)
+               end if
+            end select 
+         end loop
+      end var
+   end process
+end module

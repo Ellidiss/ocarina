@@ -6,7 +6,7 @@ with Deployment;
 
 processor x86
 properties
-   Scheduling_Protocol => (RATE_MONOTONIC_PROTOCOL);
+   Scheduling_Protocol => (POSIX_1003_HIGHEST_PRIORITY_FIRST_PROTOCOL);
    Deployment::Execution_Platform => Native;
 end x86;
 
@@ -23,7 +23,7 @@ end x86.win32;
 
 processor implementation x86.linux_bench
 properties
-   Scheduling_Protocol => (RATE_MONOTONIC_PROTOCOL);
+   Scheduling_Protocol => (POSIX_1003_HIGHEST_PRIORITY_FIRST_PROTOCOL);
    Deployment::Execution_Platform => bench;
 end x86.linux_bench;
 
@@ -46,16 +46,6 @@ processor implementation x86.native_compcert
 properties
    Deployment::Execution_Platform => Native_Compcert;
 end x86.native_compcert;
-
-processor implementation x86.rtems
-properties
-   Deployment::Execution_Platform => X86_RTEMS;
-end x86.rtems;
-
-processor implementation x86.rtems_posix
-properties
-   Deployment::Execution_Platform => X86_RTEMS_POSIX;
-end x86.rtems_posix;
 
 processor implementation x86.xenomai_posix
 properties

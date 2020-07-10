@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---    Copyright (C) 2005-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
+--    Copyright (C) 2005-2009 Telecom ParisTech, 2010-2020 ESA & ISAE.      --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -47,6 +47,9 @@ with Ocarina.Backends.Messages;
 with Ocarina.Backends.Ada_Tree.Nodes;
 with Ocarina.Backends.Ada_Tree.Nutils;
 with Ocarina.Backends.Ada_Values;
+with Ocarina.Instances.Queries;
+with Ocarina.Backends.Helper;
+with Utils; use Utils;
 
 package body Ocarina.Backends.Utils is
 
@@ -69,6 +72,10 @@ package body Ocarina.Backends.Utils is
    use Ocarina.ME_AADL.AADL_Instances.Entities;
    use Ocarina.Backends.Messages;
    use Ocarina.Backends.Ada_Tree.Nutils;
+   use Ocarina.Instances.Queries;
+   use Ocarina.Backends.Helper;
+
+   type Browsing_Kind is (By_Source, By_Destination);
 
    --  The entered directories stack
 
@@ -218,6 +225,44 @@ package body Ocarina.Backends.Utils is
       end if;
       return Name_Find;
    end Remove_Directory_Separator;
+
+   --------------------
+   -- Copy_Directory --
+   --------------------
+
+   procedure Copy_Directory (From : String; Dest : String) is
+
+      procedure Process_Entry (Directory_Entry : Directory_Entry_Type) is
+      begin
+         case Kind (Full_Name (Directory_Entry)) is
+            when Ordinary_File =>
+               Copy_File (Full_Name (Directory_Entry),
+                          Dest & "/"
+                            & Simple_Name (Simple_Name (Directory_Entry)));
+
+            when Directory =>
+               if  Simple_Name (Simple_Name (Directory_Entry)) /= "" and then
+                 Simple_Name (Simple_Name (Directory_Entry)) /= ".." and then
+                 Simple_Name (Simple_Name (Directory_Entry)) /= "."
+               then
+                  Copy_Directory
+                    (Full_Name (Directory_Entry),
+                     Compose (Dest, Simple_Name (Directory_Entry)));
+               end if;
+
+            when others => null;
+         end case;
+      end Process_Entry;
+
+   begin
+      if Kind (From) = Directory then
+         Create_Path (Dest);
+      else
+         raise Program_Error with "Invalid kind for " & From;
+      end if;
+
+      Search (From, "", Process => Process_Entry'Access);
+   end Copy_Directory;
 
    ----------------------------------
    -- May_Be_Append_Handling_Entry --
@@ -692,9 +737,10 @@ package body Ocarina.Backends.Utils is
                AAU.Append_Node_To_List
                  (Make_Node_Container (Item (S), B),
                   Result);
+
             elsif Kind (Item (S)) = K_Port_Spec_Instance
               and then Parent_Component (Item (S)) /= No_Node
-              and then (Is_Process_Or_Device (Parent_Component (Item (S))))
+              and then Is_Process_Or_Device (Parent_Component (Item (S)))
             then
 
                if Is_In (Item (S)) then
@@ -730,6 +776,23 @@ package body Ocarina.Backends.Utils is
                AAU.Append_Node_To_List
                  (First_Node (Rec_Get_Source_Ports (Item (S), Bus)),
                   Result);
+
+            elsif Kind (Item (S)) = K_Port_Spec_Instance
+              and then Present (Parent_Component (Item (S)))
+              and then Is_System (Parent_Component (Item (S)))
+            then
+               AAU.Append_Node_To_List
+                 (First_Node (Rec_Get_Source_Ports (Item (S), No_Node)),
+                  Result);
+
+            elsif Kind (Item (S)) = K_Parameter_Instance
+              and then Present (Parent_Component (Item (S)))
+              and then Is_Subprogram (Parent_Component (Item (S)))
+            then
+               AAU.Append_Node_To_List
+                 (Make_Node_Container (Item (S), B),
+                  Result);
+
             else
                Display_Located_Error
                  (Loc (P),
@@ -840,11 +903,11 @@ package body Ocarina.Backends.Utils is
                AAU.Append_Node_To_List
                  (Make_Node_Container (Item (D), B),
                   Result);
+
             elsif Custom_Parent /= No_Node
               and then Is_Device (Custom_Parent)
               and then Get_Port_By_Name (P, Custom_Parent) /= No_Node
             then
-
                AAU.Append_Node_To_List
                  (First_Node
                     (Rec_Get_Destination_Ports
@@ -852,6 +915,23 @@ package body Ocarina.Backends.Utils is
                         B,
                         No_Node)),
                   Result);
+
+            elsif Kind (Item (D)) = K_Port_Spec_Instance
+              and then Present (Parent_Component (Item (D)))
+              and then Is_System (Parent_Component (Item (D)))
+            then
+               AAU.Append_Node_To_List
+                 (First_Node (Rec_Get_Destination_Ports (Item (D), No_Node)),
+                  Result);
+
+            elsif Kind (Item (D)) = K_Parameter_Instance
+              and then Present (Parent_Component (Item (D)))
+              and then Is_Subprogram (Parent_Component (Item (D)))
+            then
+               AAU.Append_Node_To_List
+                 (Make_Node_Container (Item (D), B),
+                  Result);
+
             else
                Display_Located_Error
                  (Loc (P),
@@ -2802,6 +2882,15 @@ package body Ocarina.Backends.Utils is
    end To_Milliseconds;
 
    ---------------------
+   -- To_Microseconds --
+   ---------------------
+
+   function To_Microseconds (S : Time_Type) return Unsigned_Long_Long is
+   begin
+      return Unsigned_Long_Long (To_Seconds (S) * 1_000_000.0);
+   end To_Microseconds;
+
+   ---------------------
    -- To_Nanoseconds --
    ---------------------
 
@@ -3126,7 +3215,6 @@ package body Ocarina.Backends.Utils is
          end if;
 
          N := Next_Node (N);
-
       end loop;
 
       return Return_Value;
@@ -3240,7 +3328,8 @@ package body Ocarina.Backends.Utils is
 
          while Present (S) loop
             if Kind (S) = K_Connection_Instance
-              and then Get_Category_Of_Connection (S) = CT_Access_Bus
+              and then (Get_Category_Of_Connection (S) = CT_Access_Bus
+                          or else Get_Category_Of_Connection (S) = CT_Access)
             then
                Device := Item (First_Node (Path (Destination (S))));
 
@@ -3299,7 +3388,8 @@ package body Ocarina.Backends.Utils is
 
          while Present (S) loop
             if Kind (S) = K_Connection_Instance
-              and then Get_Category_Of_Connection (S) = CT_Access_Bus
+              and then (Get_Category_Of_Connection (S) = CT_Access_Bus
+                          or else Get_Category_Of_Connection (S) = CT_Access)
             then
                if True
                   --  This device is connected to the bus
@@ -3328,8 +3418,8 @@ package body Ocarina.Backends.Utils is
    -----------------------
 
    function Is_Protected_Data (Data_Component : Node_Id) return Boolean is
-      Concurrency_Protocol : constant Supported_Concurrency_Control_Protocol
-        := Get_Concurrency_Protocol (Data_Component);
+      Concurrency_Protocol : constant Supported_Concurrency_Control_Protocol :=
+        Get_Concurrency_Protocol (Data_Component);
    begin
       return Concurrency_Protocol = Priority_Ceiling;
    end Is_Protected_Data;
@@ -3613,9 +3703,9 @@ package body Ocarina.Backends.Utils is
       return False;
    end Is_Pure_Device_Port;
 
-   ----------------------------
-   --  Is_Using_Virtual_Bus  --
-   ----------------------------
+   ---------------------------
+   -- Is_Using_Virtual_Bus  --
+   ---------------------------
 
    function Is_Using_Virtual_Bus (Port : Node_Id) return Boolean is
 
@@ -3833,9 +3923,9 @@ package body Ocarina.Backends.Utils is
       return False;
    end Process_Use_Defaults_Sockets;
 
-   --------------------------
-   --  Get_Associated_Bus  --
-   --------------------------
+   -------------------------
+   -- Get_Associated_Bus --
+   -------------------------
 
    function Get_Associated_Bus (Port : Node_Id) return Node_Id is
       C               : Node_Id;
@@ -3897,26 +3987,25 @@ package body Ocarina.Backends.Utils is
    -- Get_Root_Component --
    ------------------------
 
-   function Get_Root_Component (C : Node_Id)
-                               return Node_Id is
+   function Get_Root_Component (C : Node_Id) return Node_Id is
    begin
       if (Parent_Subcomponent (C) = No_Node) then
          return C;
       end if;
 
-      return Get_Root_Component
-         (Parent_Component (Parent_Subcomponent (C)));
+      return Get_Root_Component (Parent_Component (Parent_Subcomponent (C)));
    end Get_Root_Component;
 
    -----------------------------
    -- Find_Associated_Process --
    -----------------------------
 
-   function Find_Associated_Process (Runtime    : Node_Id;
-                                     Root_Node  : Node_Id := No_Node)
-                                     return Node_Id is
-      T : Node_Id;
-      S : Node_Id;
+   function Find_Associated_Process
+     (Runtime   : Node_Id;
+      Root_Node : Node_Id := No_Node) return Node_Id
+   is
+      T            : Node_Id;
+      S            : Node_Id;
       Current_Node : Node_Id;
    begin
       if Root_Node = No_Node then
@@ -3925,8 +4014,8 @@ package body Ocarina.Backends.Utils is
          Current_Node := Root_Node;
       end if;
 
-      if Get_Category_Of_Component (Current_Node) = CC_Process and then
-         Get_Bound_Processor (Current_Node) = Runtime
+      if Get_Category_Of_Component (Current_Node) = CC_Process
+        and then Get_Bound_Processor (Current_Node) = Runtime
       then
          return Current_Node;
       end if;
@@ -3934,8 +4023,7 @@ package body Ocarina.Backends.Utils is
       if not AAU.Is_Empty (Subcomponents (Current_Node)) then
          S := First_Node (Subcomponents (Current_Node));
          while Present (S) loop
-            T := Find_Associated_Process
-               (Runtime, Corresponding_Instance (S));
+            T := Find_Associated_Process (Runtime, Corresponding_Instance (S));
 
             if T /= No_Node then
                return T;
@@ -3952,11 +4040,12 @@ package body Ocarina.Backends.Utils is
    -- Get_Partition_Runtime --
    ---------------------------
 
-   function Get_Partition_Runtime (Process    : Node_Id;
-                                   Root_Node  : Node_Id := No_Node)
-                                     return Node_Id is
-      T : Node_Id;
-      S : Node_Id;
+   function Get_Partition_Runtime
+     (Process   : Node_Id;
+      Root_Node : Node_Id := No_Node) return Node_Id
+   is
+      T            : Node_Id;
+      S            : Node_Id;
       Current_Node : Node_Id;
    begin
       if Root_Node = No_Node then
@@ -3966,7 +4055,7 @@ package body Ocarina.Backends.Utils is
       end if;
 
       if Get_Category_Of_Component (Current_Node) = CC_Virtual_Processor
-         and then Get_Bound_Processor (Process) = Current_Node
+        and then Get_Bound_Processor (Process) = Current_Node
       then
          return Current_Node;
       end if;
@@ -3974,8 +4063,7 @@ package body Ocarina.Backends.Utils is
       if not AAU.Is_Empty (Subcomponents (Current_Node)) then
          S := First_Node (Subcomponents (Current_Node));
          while Present (S) loop
-            T := Get_Partition_Runtime
-               (Process, Corresponding_Instance (S));
+            T := Get_Partition_Runtime (Process, Corresponding_Instance (S));
 
             if T /= No_Node then
                return T;
@@ -3987,5 +4075,119 @@ package body Ocarina.Backends.Utils is
 
       return No_Node;
    end Get_Partition_Runtime;
+
+   -----------------
+   -- Get_Core_Id --
+   -----------------
+
+   function Get_Core_Id (D : Node_Id) return Unsigned_Long_Long is
+      pragma Assert (Is_Thread (D));
+      Core_Id : Unsigned_Long_Long := 0;
+
+   begin
+      --  First, we check the container process is associated to a
+      --  core. This is the case when we want to allocate one process
+      --  to a core.
+
+      if Present (Get_Container_Process (D)) then
+         Core_Id :=
+           Properties.Get_Core_Id
+           (Get_Bound_Processor
+              (Corresponding_Instance (Get_Container_Process (D))));
+      end if;
+
+      --  Then, we check whether the thread is directly bound to a core
+
+      if Core_Id = 0 and then Present (Get_Bound_Processor (D)) then
+         Core_Id := Properties.Get_Core_Id (Get_Bound_Processor (D));
+      end if;
+
+      return Core_Id;
+   end Get_Core_Id;
+
+   -------------
+   -- Is_Core --
+   -------------
+
+   function Is_Core (VP : Node_Id) return Boolean is
+   begin
+      return Is_Virtual_Processor (VP) and then
+        Is_Defined_Property (VP, "processor_properties::core_id");
+   end Is_Core;
+
+   ------------------
+   -- Is_Partition --
+   ------------------
+
+   function Is_Partition (VP : Node_Id) return Boolean is
+   begin
+      return Is_Virtual_Processor (VP) and then
+        Is_Defined_Property (VP, "deployment::execution_platform");
+   end Is_Partition;
+
+   -------------------------
+   -- Get_Number_Of_Cores --
+   -------------------------
+
+   function Get_Number_Of_Cores (P : Node_Id) return Unsigned_Long_Long is
+      Number_Of_Cores : Unsigned_Long_Long := 0;
+
+   begin
+      for Elt of Subcomponents_Of (P) loop
+         if Is_Core (Corresponding_Instance (Elt)) then
+            Number_Of_Cores := Number_Of_Cores + 1;
+         end if;
+      end loop;
+
+      if Number_Of_Cores /= 0 then
+         return Number_Of_Cores;
+      else
+         return 1;
+      end if;
+   end Get_Number_Of_Cores;
+
+   ------------------------------
+   -- Visit_Subcomponents_Of_G --
+   ------------------------------
+
+   procedure Visit_Subcomponents_Of_G (E : Node_Id) is
+      package AINU renames Ocarina.ME_AADL.AADL_Instances.Nutils;
+
+      S : Node_Id;
+   begin
+      if not AINU.Is_Empty (Subcomponents (E)) then
+         S := First_Node (Subcomponents (E));
+         while Present (S) loop
+            --  Visit the component instance corresponding to the
+            --  subcomponent S.
+            Visit (Corresponding_Instance (S));
+            S := Next_Node (S);
+         end loop;
+      end if;
+   end Visit_Subcomponents_Of_G;
+
+   --------------------------------
+   -- Has_Behavior_Specification --
+   --------------------------------
+
+   function Has_Behavior_Specification (E : Node_Id) return Boolean is
+      F : Node_Id;
+   begin
+      if not AAU.Is_Empty (Annexes (E)) then
+         F := First_Node (Annexes (E));
+
+         while Present (F) loop
+            if (To_Upper (AIN.Display_Name (AIN.Identifier (F))) =
+                  To_Upper (Get_String_Name ("behavior_specification")))
+            then
+               return True;
+            end if;
+
+            F := Next_Node (F);
+         end loop;
+      end if;
+
+      return False;
+   end Has_Behavior_Specification;
 
 end Ocarina.Backends.Utils;

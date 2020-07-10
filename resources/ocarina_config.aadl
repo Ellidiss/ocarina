@@ -20,15 +20,16 @@ property set Ocarina_Config is
    (gprof,
     ASN1);
 
-  Generator_Options : list of Ocarina_Config::Generator_Options_Type applies to (system);
+  Generator_Options : list of Ocarina_Config::Generator_Options_Type
+    applies to (system);
   --  Code generation options.
 
   AADL_Files : list of aadlstring applies to (system);
   --  List of the AADL source files used by the current application
 
+  Cheddar_Properties  : constant aadlstring => "Cheddar_Properties";
   Data_Model          : constant aadlstring => "Data_Model";
   Deployment          : constant aadlstring => "Deployment";
-  Cheddar_Properties  : constant aadlstring => "Cheddar_Properties";
   POK_Properties      : constant aadlstring => "pok_properties";
   ARINC653_Properties : constant aadlstring => "arinc653";
   ASSERT_Properties   : constant aadlstring => "ASSERT_Properties";
@@ -47,6 +48,36 @@ property set Ocarina_Config is
   --  set file is located in the same directory as the Ocarina
   --  non-standard property sets.
 
+  Ocarina_Driver_Library : constant list of aadlstring =>
+  ("devices.aadl",
+   "buses",
+   "base_types",
+   "exarm-ni-6071e-analog.aadl",
+   "grspw.aadl",
+   "rasta-serial.aadl",
+   "sockets-rtems-ne2000.aadl",
+   "exarm-ni-6071e-digital.aadl",
+   "gruart.aadl",
+   "rasta-spacewire.aadl",
+   "tcp_protocol.aadl",
+   "generic-keyboard.aadl",
+   "leon-eth.aadl",
+   "scoc3-spacewire.aadl",
+   "udp-exarm.aadl",
+   "generic_bus.aadl",
+   "leon-serial.aadl",
+   "sd-spw-usb.aadl",
+   "generic_native.aadl",
+   "native_uart.aadl",
+   "serial-raw.aadl",
+   "gr_cpci_x4cv.aadl",
+   "rasta-1553.aadl",
+   "sockets-raw.aadl",
+   "grspw_packet.aadl",
+   "apbuart.aadl",
+   "greth.aadl",
+   "stardundee.aadl");
+
   Root_System_Name : aadlstring applies to (system);
   --  If present, indicates the name of the root of the instance tree
 
@@ -62,4 +93,18 @@ property set Ocarina_Config is
 
   Timeout_Property : Time applies to (system);
   --  The timeout used to stop an execution
+
+  Annex_Type : type enumeration
+   (annex_all,
+    annex_none,
+    behavior_specification,
+    real_specification,
+    emv2);
+    --  Designates the list of annexes supported in ocarina. annex_all
+    --  and annex_none designate respectively all supported annexes
+    --  and none of them for properties that accept this kind of
+    --  designation.
+
+  Enable_Annexes : list of Ocarina_Config::Annex_Type applies to (system);
+  --  List of annexes to be enabled in the parsed model
 end Ocarina_Config;

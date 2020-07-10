@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
+--    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2018 ESA & ISAE.      --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -32,10 +32,10 @@
 with GNAT.OS_Lib; use GNAT.OS_Lib;
 with GNAT.Table;
 
-with Charset; use Charset;
-with Ocarina.Namet;   use Ocarina.Namet;
-with Ocarina.Output;  use Ocarina.Output;
-with Errors;  use Errors;
+with Charset;        use Charset;
+with Ocarina.Namet;  use Ocarina.Namet;
+with Ocarina.Output; use Ocarina.Output;
+with Errors;         use Errors;
 
 with Ocarina.Backends.Build_Utils;
 with Ocarina.Backends.Messages;
@@ -47,10 +47,8 @@ with Ocarina.Backends.Vxworks653_Conf;
 with Ocarina.Backends.PO_HI_Ada;
 with Ocarina.Backends.ASN1;
 with Ocarina.Backends.PO_HI_C;
-with Ocarina.Backends.PO_HI_RTSJ;
 with Ocarina.Backends.Stats;
 with Ocarina.Backends.Subprograms;
-with Ocarina.Backends.Carts;
 with Ocarina.Backends.Cheddar;
 with Ocarina.Backends.Connection_Matrix;
 with Ocarina.Backends.Functions_Matrix;
@@ -66,14 +64,14 @@ with Ocarina.Backends.Ada_Values;
 with Ocarina.Backends.C_Tree.Nodes;
 with Ocarina.Backends.C_Tree.Nutils;
 with Ocarina.Backends.C_Values;
-with Ocarina.Backends.RTSJ_Tree.Nodes;
-with Ocarina.Backends.RTSJ_Tree.Nutils;
-with Ocarina.Backends.RTSJ_Values;
 with Ocarina.Backends.XML_Values;
 with Ocarina.Backends.XML_Tree.Nutils;
 with Ocarina.Backends.BoundT;
 with Ocarina.Backends.REAL;
+with Ocarina.Backends.LNT;
+with Ocarina.Backends.Replication_Expander;
 with Ocarina.Backends.Xtratum_Conf;
+with Ocarina.Backends.AIR_Conf;
 with Ocarina.Backends.ASN1_Tree.Nodes;
 with Ocarina.Backends.ASN1_Tree.Nutils;
 with Ocarina.Backends.ASN1_Values;
@@ -102,10 +100,6 @@ package body Ocarina.Backends is
       10,
       10);
 
-   procedure Write_Backends (Indent : Natural);
-   --  Displays the list of registered generators each one on a new
-   --  line indented by 'Indent'.
-
    -------------------
    -- Generate_Code --
    -------------------
@@ -122,25 +116,21 @@ package body Ocarina.Backends is
       --  given in the instance root system.
 
       if Backend_Name /= No_Name then
-         for B in Backend_Table.First .. Backend_Table.Last loop
-            if Backend_Table.Table (B).Name = Backend_Name then
-               Current_Backend      := B;
-               Current_Backend_Kind := Backend_Table.Table (B).Kind;
-               exit;
-            end if;
-         end loop;
+         Current_Backend :=  Get_Backend (Backend_Name);
+
+         if Current_Backend /= 0 then
+            Current_Backend_Kind := Backend_Table.Table (Current_Backend).Kind;
+         end if;
 
       elsif Current_Backend_Name = No_Name then
          Display_Error ("No backend name specified", Fatal => True);
 
       else
-         for B in Backend_Table.First .. Backend_Table.Last loop
-            if Backend_Table.Table (B).Name = Current_Backend_Name then
-               Current_Backend      := B;
-               Current_Backend_Kind := Backend_Table.Table (B).Kind;
-               exit;
-            end if;
-         end loop;
+         Current_Backend :=  Get_Backend (Current_Backend_Name);
+
+         if Current_Backend /= 0 then
+            Current_Backend_Kind := Backend_Table.Table (Current_Backend).Kind;
+         end if;
       end if;
 
       if Current_Backend = 0 then
@@ -157,6 +147,26 @@ package body Ocarina.Backends is
       when E : others =>
          Errors.Display_Bug_Box (E);
    end Generate_Code;
+
+   -----------------
+   -- Get_Backend --
+   -----------------
+
+   function Get_Backend (Backend_Name : Name_Id := No_Name) return Natural is
+      Current_Backend : Natural := 0;
+   begin
+      if Backend_Name /= No_Name then
+         for B in Backend_Table.First .. Backend_Table.Last loop
+
+            if Backend_Table.Table (B).Name = Backend_Name then
+               Current_Backend      := B;
+               exit;
+            end if;
+         end loop;
+      end if;
+
+      return Current_Backend;
+   end Get_Backend;
 
    ------------------------------
    -- Get_Current_Backend_Kind --
@@ -177,12 +187,20 @@ package body Ocarina.Backends is
       Properties.Init;
       Ada_Tree.Nutils.Initialize;
       C_Tree.Nutils.Initialize;
-      RTSJ_Tree.Nutils.Initialize;
       XML_Tree.Nutils.Initialize;
       MAST_Tree.Nutils.Initialize;
       ASN1_Tree.Nutils.Initialize;
 
-      --  Register the several code generators
+      if Generated_Sources_Directory = No_Name then
+         Generated_Sources_Directory := Get_String_Name (".");
+      end if;
+
+      Compile_Generated_Sources :=
+        Compile_Generated_Sources
+        or else Do_Regression_Test
+        or else Do_Coverage_Test;
+
+      --  Register the code generators
 
       Ocarina.Backends.ARINC653_Conf.Init;
       Ocarina.Backends.Vxworks653_Conf.Init;
@@ -192,19 +210,20 @@ package body Ocarina.Backends is
       MAST.Init;
       PO_HI_Ada.Init;
       PO_HI_C.Init;
-      PO_HI_RTSJ.Init;
       POK_C.Init;
       Xtratum_Conf.Init;
       Stats.Init;
       Subprograms.Init;
       REAL.Init;
-      Carts.Init;
       ASN1.Init;
       Cheddar.Init;
+      LNT.Init;
+      Replication_Expander.Init;
       Connection_Matrix.Init;
       Functions_Matrix.Init;
       AADL_XML.Init;
       Alloy.Init;
+      AIR_Conf.Init;
    end Init;
 
    ----------------------
@@ -261,17 +280,14 @@ package body Ocarina.Backends is
    begin
       PO_HI_Ada.Reset;
       PO_HI_C.Reset;
-      PO_HI_RTSJ.Reset;
       POK_C.Reset;
       Xtratum_Conf.Reset;
       Stats.Reset;
-      Carts.Reset;
       Connection_Matrix.Reset;
       Functions_Matrix.Reset;
 
       Ada_Tree.Nutils.Reset;
       C_Tree.Nutils.Reset;
-      RTSJ_Tree.Nutils.Reset;
       ASN1_Tree.Nutils.Reset;
       MAST_Tree.Nutils.Reset;
 
@@ -287,13 +303,10 @@ package body Ocarina.Backends is
       MAST_Tree.Nodes.Entries.Init;
       MAST_Values.Reset;
 
-      RTSJ_Tree.Nodes.Entries.Free;
-      RTSJ_Tree.Nodes.Entries.Init;
-      RTSJ_Values.Reset;
-
       XML_Values.Reset;
       BoundT.Reset;
       REAL.Reset;
+      LNT.Reset;
 
       ASN1_Tree.Nodes.Entries.Free;
       ASN1_Tree.Nodes.Entries.Init;
@@ -325,23 +338,6 @@ package body Ocarina.Backends is
    begin
       return Current_Backend_Name;
    end Get_Current_Backend_Name;
-
-   -----------
-   -- Usage --
-   -----------
-
-   procedure Usage is
-   begin
-      Write_Line ("   -g  Generate code from the AADL instance tree");
-      Ocarina.Backends.Write_Backends (7);
-      Write_Line ("   -perf  Enable profiling with gprof (PolyORB-HI-C only)");
-      Write_Line
-        ("   -asn1  Generate ASN1 deployment file (PolyORB-HI-C only)");
-      Write_Line
-        ("   -arinc653  Generate code for ARINC653 API (POK backend only)");
-      Write_Line ("   -b  Generate and build code from the AADL model");
-      Write_Line ("   -z  Clean code generated from the AADL model");
-   end Usage;
 
    --------------------
    -- Write_Backends --

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
+--    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2020 ESA & ISAE.      --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -39,13 +39,13 @@ package Ocarina.Backends.Properties is
    Empty_Name_Array : constant Name_Array;
 
    type ULL_Array is array (Nat range <>) of Unsigned_Long_Long;
-   Empty_ULL_Array  : constant ULL_Array;
+   Empty_ULL_Array : constant ULL_Array;
 
    type LL_Array is array (Nat range <>) of Long_Long;
-   Empty_LL_Array   : constant LL_Array;
+   Empty_LL_Array : constant LL_Array;
 
    type LD_Array is array (Nat range <>) of Long_Double;
-   Empty_LD_Array   : constant LD_Array;
+   Empty_LD_Array : constant LD_Array;
 
    --  Common types to several components and entities
 
@@ -75,7 +75,10 @@ package Ocarina.Backends.Properties is
       Language_Scade,
       Language_SDL,
       Language_Simulink,
+      Language_QGenC,
+      Language_QGenAda,
       Language_System_C,
+      Language_VDM,
       Language_VHDL,
       Language_None);
 
@@ -224,6 +227,7 @@ package Ocarina.Backends.Properties is
    type Supported_Data_Representation is
      (Data_Array,
       Data_Boolean,
+      Data_Bounded_Array,
       Data_Character,
       Data_Wide_Character,
       Data_Enum,
@@ -245,15 +249,13 @@ package Ocarina.Backends.Properties is
       Access_None);
 
    type Supported_Concurrency_Control_Protocol is --  XXX
-     (None_Specified,
-      Priority_Inheritance,
-      Priority_Ceiling);
+     (None_Specified, Immediate_Priority_Ceiling_Protocol,
+      Priority_Inheritance, Priority_Ceiling, Protected_Access);
 
    type Supported_IEEE754_Precision is
      (Precision_Simple, Precision_Double, Precision_None);
 
-   type Supported_Number_Representation is
-     (Signed, Unsigned, None);
+   type Supported_Number_Representation is (Signed, Unsigned, None);
 
    function Get_Base_Type (D : Node_Id) return List_Id;
    --  Return the component instance that defines the base data type
@@ -366,6 +368,7 @@ package Ocarina.Backends.Properties is
      (Thread_With_Call_Sequence,
       Thread_With_Compute_Entrypoint,
       Thread_With_Port_Compute_Entrypoint,
+      Thread_With_Behavior_Specification,
       Thread_Unknown);
 
    type Supported_POSIX_Scheduling_Policy is
@@ -492,7 +495,8 @@ package Ocarina.Backends.Properties is
       Subprogram_Esterel,
       Subprogram_Lua,
       Subprogram_Pure_Call_Sequence,
-      Subprogram_Hybrid_Ada_95);
+      Subprogram_Hybrid_Ada_95,
+      Subrogram_With_Behavior_Specification);
 
    function Get_Subprogram_Kind (S : Node_Id) return Supported_Subprogram_Kind;
    --  Return the kind of a subprogram depending on its internal
@@ -504,6 +508,7 @@ package Ocarina.Backends.Properties is
    ----------------------------------
 
    function Get_Bound_Processor (P : Node_Id) return Node_Id;
+   function Get_Bound_Processor_L (P : Node_Id) return List_Id;
    --  Return the processor component to which the process P is
    --  bound. Raises an error if P is not bound to any processor.
 
@@ -541,15 +546,9 @@ package Ocarina.Backends.Properties is
      (Platform_Native,
       Platform_Native_Compcert,
       Platform_Bench,
-      Platform_Gumstix_RTEMS,
-      Platform_Gumstix_RTEMS_POSIX,
-      Platform_NDS_RTEMS,
-      Platform_NDS_RTEMS_POSIX,
+      Platform_X86_LINUXTASTE,
       Platform_LEON_RTEMS,
       Platform_LEON_RTEMS_POSIX,
-      Platform_X86_RTEMS,
-      Platform_X86_RTEMS_POSIX,
-      Platform_X86_LINUXTASTE,
       Platform_LEON_GNAT,
       Platform_LEON3_SCOC3,
       Platform_LEON3_XM3,
@@ -557,20 +556,32 @@ package Ocarina.Backends.Properties is
       Platform_LEON_ORK,
       Platform_WIN32,
       Platform_LINUX32,
+      Platform_LINUX_DLL,
       Platform_LINUX32_XENOMAI_NATIVE,
       Platform_LINUX32_XENOMAI_POSIX,
       Platform_LINUX64,
       Platform_ERC32_ORK,
-      Platform_ARM_DSLINUX,
-      Platform_ARM_N770,
       Platform_MARTE_OS,
       Platform_VxWorks,
+      Platform_GNAT_Runtime,
+      Platform_AIR,
+      Platform_AIR_IOP,
       Platform_None); --  Unspecified
 
    function Get_Execution_Platform
      (P : Node_Id) return Supported_Execution_Platform;
    function Get_Execution_Platform (P : Node_Id) return Name_Id;
    --  Return the execution platform of the given processor P
+
+   function Get_Ada_Runtime (P : Node_Id) return Name_Id;
+   --  Return the name of the Ada runtime library for the processor P
+
+   function Get_USER_CFLAGS (P : Node_Id) return Name_Id;
+   function Get_USER_LDFLAGS (P : Node_Id) return Name_Id;
+   --  Return USER_CFLAGS and USER_LDFLAGS property for processor P
+
+   function Get_USER_ENV (P : Node_Id) return Name_Id;
+   --  Return USER_ENV property
 
    function Get_Location (P : Node_Id) return Name_Id;
    --  Return the location of the processor or device P. No_Name is
@@ -579,6 +590,15 @@ package Ocarina.Backends.Properties is
    --  processor.
 
    function Get_Scheduler_Quantum (P : Node_Id) return Time_Type;
+
+   type Frequency_Units is (Hz, Khz, Mhz, Ghz);
+
+   type Frequency_Type is record
+      S : Unsigned_Long_Long;
+      F : Frequency_Units;
+   end record;
+
+   function Get_Processor_Frequency (P : Node_Id) return Frequency_Type;
 
    --------------------------------
    -- AADL Connection Properties --
@@ -606,9 +626,9 @@ package Ocarina.Backends.Properties is
       E : Node_Id := No_Node) return Supported_Transport_APIs;
    --  Return the transport layer supported by the bus B
 
-   ----------------------
-   --  Port properties --
-   ----------------------
+   ---------------------
+   -- Port properties --
+   ---------------------
 
    type Supported_Port_Timing is
      (Port_Timing_Sampled,

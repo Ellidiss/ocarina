@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                   Copyright (C) 2014-2015 ESA & ISAE.                    --
+--                   Copyright (C) 2014-2016 ESA & ISAE.                    --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,26 +29,27 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
----  This package provides accessors to the property set of the
----  ARINC653 annex document, published as part of AS5506/1A standard.
+--  This package provides accessors to the property set of the
+--  ARINC653 annex document, published as part of AS5506/1A standard.
 
 package Ocarina.Backends.Properties.ARINC653 is
 
    type Schedule_Window_Record_Term is record
-      Partition : Node_Id;
-      Duration : Time_Type;
+      Partition                 : Node_Id;
+      Duration                  : Time_Type;
       Periodic_Processing_Start : Boolean;
    end record;
 
-   type Schedule_Window_Record_Term_Array is array (Natural range <>)
-     of Schedule_Window_Record_Term;
+   type Schedule_Window_Record_Term_Array is
+     array (Natural range <>) of Schedule_Window_Record_Term;
 
    Empty_Schedule_Window_Record_Term_Array :
-     constant Schedule_Window_Record_Term_Array (1 .. 0)
-     := (others => (No_Node, (0, Picosecond), False));
+     constant Schedule_Window_Record_Term_Array (1 .. 0) :=
+     (others => (No_Node, (0, Picosecond), False));
 
    function Get_Module_Schedule_Property
-     (E : Node_Id)
-     return Schedule_Window_Record_Term_Array;
+     (E : Node_Id) return Schedule_Window_Record_Term_Array;
+
+   function Get_Partition_Identifier (P : Node_Id) return Unsigned_Long_Long;
 
 end Ocarina.Backends.Properties.ARINC653;

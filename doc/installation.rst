@@ -1,4 +1,3 @@
-
 .. _installation:
 
 ============
@@ -14,8 +13,8 @@ Ocarina has been compiled and successfully tested on the following platforms:
 * Mac OS X
 * Windows
 
-.. note:: Ocarina should compile and run on every target for which GNAT is available.
-
+.. note:: Ocarina should compile and run on every target for which
+          GNAT is available.
 
 Build requirements
 ##################
@@ -31,7 +30,10 @@ An Ada compiler:
    versions installed. See below explanations on the ADA environment
    variable if you need to override the default guess.
 
-.. note:: Ocarina requires at least GCC/FSF 5.1 or GNAT GPL 2015 to be compiled.
+.. note:: Ocarina requires at least GCC/FSF 7 or GNAT GPL 2016 or more
+          recent.
+
+* autoconf, automake, GNU Make, python
 
 Optional components:
 
@@ -43,8 +45,33 @@ Optional components:
 * MAST for scheduling analysis (:code:`mast` backend)
 * RTOS supported by one of the Ocarina runtimes
 
-Build instructions
-##################
+Semi-automated build instructions
+#################################
+
+The `ocarina-build <https://github.com/OpenAADL/ocarina-build/>`_
+repository proposes a script, `build_ocarina.sh`, to get source code,
+compile and test Ocarina.
+
+It relies on bash constructs to coordinate various activities to:
+
+- fetch Ocarina source, with its runtimes PolyORB-HI/Ada and
+  PolyORB-HI/C
+- compile Ocarina, and install it in a local directory
+- run Ocarina testsuites, and eventually collect coverage metrics
+
+To install this script, simply clone the repository and run the
+script. Use `build_ocarina.sh -h` to access its help.
+
+* The following command gets a fresh copy of Ocarina source code::
+
+  % ./build_ocarina.sh -s -u
+
+* The following command compiles and installs Ocarina::
+
+  % ./build_ocarina.sh -b
+
+Manual build instructions
+#########################
 
 To compile and install Ocarina, execute in a shell::
 
@@ -63,6 +90,12 @@ another prefix than `/usr/local`, give configure use `--prefix` argument
    Makefile.in...); to do this, from the main directory, run::
 
    ./support/reconfig
+
+.. note:: To install the PolyORB/HI runtimes, you may use the script
+   get_runtimes.sh. It will install required ressources in the
+   Ocarina source tree::
+
+   ./support/get_runtimes.sh po_hi_ada po_hi_c
 
 Build options
 #############
@@ -129,3 +162,22 @@ User's Guide for more details.
    should be done after each update from the repository. In addition
    to the requirements above, they will need autoconf 2.57 or newer,
    automake 1.6.3 or newer.
+
+Windows-specific options
+########################
+
+Ocarina relies on autotools script to compile, and then on Python for
+testing and running regression testing. Such setting is unusual for
+Windows and requires additional tools.
+
+The recommended set of tools for compiling Ocarina under Windows
+(tested on Windows 7, as of 2018/02/27) is to
+
+* install MSYS2, and use its terminal for running all compilation scripts
+
+* install autoconf, automake, Python and GNU Make
+
+* install `mingw-w64-x86_64-gcc-ada` package, it has GNAT front-end
+
+.. note:: It is highly recommended to rely on the `build_ocarina.sh`
+   script for the Windows platform.

@@ -9,7 +9,7 @@ GUIDE_RSTFILES = $(srcdir)/about.rst $(srcdir)/gfdl.rst			\
 	$(srcdir)/python.rst $(srcdir)/editors.rst			\
 	$(srcdir)/installation.rst $(srcdir)/usage.rst
 
-EXTRA_DIST= $(srcdir)/PROBLEM-REPORT-FORM $(GUIDE_TEXIFILES)	\
+EXTRA_DIST= $(GUIDE_TEXIFILES)	\
 	$(ALL_IMAGES) $(man_MANS) $(srcdir)/ocarina-config.html	\
 	 $(srcdir)/ocarina_man.html $(srcdir)/ocarina.css
 
@@ -58,7 +58,6 @@ install-data-local: all
 	  $(INSTALL) -d $(DESTDIR)$(datadir)/doc/ocarina/$(GUIDE).html; \
 	  $(CP) -r $(builddir)/_build/html/* $(DESTDIR)$(datadir)/doc/ocarina/$(GUIDE).html; \
 	fi
-	$(INSTALL_DATA)	$(srcdir)/PROBLEM-REPORT-FORM $(DESTDIR)$(datadir)/doc/ocarina
 	$(INSTALL_DATA)	$(srcdir)/ocarina-config.html $(DESTDIR)$(datadir)/doc/ocarina
 	$(INSTALL_DATA)	$(srcdir)/ocarina_man.html $(DESTDIR)$(datadir)/doc/ocarina
 	$(INSTALL_DATA)	$(srcdir)/ocarina.css $(DESTDIR)$(datadir)/doc/ocarina
@@ -101,9 +100,12 @@ latexpdf:
 
 build_man: $(top_srcdir)/ocarina-config.in
 	chmod 755 $(top_builddir)/ocarina-config
-	help2man --no-discard-stderr $(top_builddir)/ocarina-config >  $(top_builddir)/doc/ocarina-config.1
-	echo ".HEAD \"<link rel=\"\"stylesheet\"\" type=\"\"text/css\"\" href=\"\"ocarina.css\"\" >\"" >> $(top_builddir)/doc/ocarina-config.1
-	groff -man -Thtml $(top_builddir)/doc/ocarina-config.1 > $(top_builddir)/doc/ocarina-config.html
-	-help2man --no-discard-stderr --help-option="-help" --version-option="-V" `which ocarina` >  $(top_builddir)/doc/ocarina.1
-	echo ".HEAD \"<link rel=\"\"stylesheet\"\" type=\"\"text/css\"\" href=\"\"ocarina.css\"\" >\"" >> $(top_builddir)/doc/ocarina.1
-	groff -man -Thtml $(top_builddir)/doc/ocarina.1 > $(top_builddir)/doc/ocarina_man.html
+	help2man --no-discard-stderr $(top_builddir)/ocarina-config >  $(top_srcdir)/doc/ocarina-config.1
+	echo ".HEAD \"<link rel=\"\"stylesheet\"\" type=\"\"text/css\"\" href=\"\"ocarina.css\"\" >\"" >> $(top_srcdir)/doc/ocarina-config.1
+	groff -man -Thtml $(top_srcdir)/doc/ocarina-config.1 > $(top_srcdir)/doc/ocarina-config.html
+	-help2man --no-discard-stderr `which ocarina` >  $(top_srcdir)/doc/ocarina.1
+	echo ".HEAD \"<link rel=\"\"stylesheet\"\" type=\"\"text/css\"\" href=\"\"ocarina.css\"\" >\"" >> $(top_srcdir)/doc/ocarina.1
+	groff -man -Thtml $(top_srcdir)/doc/ocarina.1 > $(top_srcdir)/doc/ocarina_man.html
+	groff -man -Thtml $(top_srcdir)/doc/ocarina.1 > $(top_srcdir)/doc/ocarina_man.html
+	ocarina -h >  $(top_srcdir)/doc/ocarina_man.txt
+	-ocarina-config -h 2>  $(top_srcdir)/doc/ocarina_config.txt

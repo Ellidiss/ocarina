@@ -74,7 +74,29 @@ def instantiate (root_system):
     return runOcarinaFunction (libocarina_python.instantiate, root_system)
 
 ################################################################################
-Backends = Enum ([ "polyorb_hi_ada", "polyorb_hi_c"])
+def set_real_theorem (theorem_name):
+    '''Set main REAL theorem
+
+    :param theorem_name: name of the theorem
+    :type theorem_name: string
+
+    '''
+
+    return runOcarinaFunction (libocarina_python.set_real_theorem, theorem_name)
+
+################################################################################
+def add_real_library (libraryname):
+    '''
+
+    :param libraryname: name of the REAL library file to include
+    :type libraryname: string
+
+    '''
+
+    return runOcarinaFunction (libocarina_python.add_real_library, libraryname)
+
+################################################################################
+Backends = Enum ([ "polyorb_hi_ada", "polyorb_hi_c", "real_theorem"])
 '''List of supported backends, used by :data:`generate`'''
 # Note, this list should match backend names as specified by Ocarina CLI
 
@@ -100,6 +122,26 @@ def getPropertyValue (nodeId,propertyId):
 ################################################################################
 
 def getPropertyValueByName (nodeId,propertyString):
-    '''Get the value of the property
+    '''Get the value of the property propertyString applied to model
+       element nodeId.
     '''
     return runOcarinaFunction (libocarina_python.getPropertyValueByName, nodeId, propertyString)
+
+################################################################################
+
+def getSourcePorts (feature_nodeId):
+    '''Get the source port associated to the feature_nodeId passed as
+       parameter, in the case feature_nodeId participates in a
+       connection.
+    '''
+    return runOcarinaFunction (libocarina_python.getSourcePorts, feature_nodeId)
+
+################################################################################
+
+def getDestinationPorts (nodeId):
+    '''Get the destination port associated to the feature_nodeId passed as
+       parameter, in the case feature_nodeId participates in a
+       connection.
+    '''
+
+    return runOcarinaFunction (libocarina_python.getDestinationPorts, nodeId)

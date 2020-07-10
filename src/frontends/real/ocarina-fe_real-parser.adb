@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---       Copyright (C) 2009 Telecom ParisTech, 2010-2015 ESA & ISAE.        --
+--       Copyright (C) 2009 Telecom ParisTech, 2010-2018 ESA & ISAE.        --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,8 +29,6 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with GNAT.Table;
-with GNAT.Command_Line;
 with Ocarina.FE_REAL.Lexer;
 with Ocarina.FE_REAL.Parser_Errors;
 with Ocarina.ME_REAL.Tokens;
@@ -93,7 +91,6 @@ package body Ocarina.FE_REAL.Parser is
    Current_Theorem_Name : Name_Id;
 
    package Expressions is new GNAT.Table (Node_Id, Natural, 1, 100, 10);
-   package REAL_Libs is new GNAT.Table (Name_Id, Nat, 1, 10, 10);
 
    Preferences : constant array (OV_Equal .. OV_Power) of Natural :=
      (OV_Power         => 1,
@@ -1578,9 +1575,8 @@ package body Ocarina.FE_REAL.Parser is
    ------------------
 
    function P_Identifier return Node_Id is
-      use Ocarina.REAL_Values;
-
       Identifier : Node_Id;
+
    begin
       Scan_Token;
 
@@ -1859,9 +1855,11 @@ package body Ocarina.FE_REAL.Parser is
    function Process
      (AADL_Root : Node_Id;
       From      : Location;
-      To        : Location := No_Location) return Node_Id
+      To        : Location := No_Location;
+      Container : Node_Id  := No_Node) return Node_Id
    is
       pragma Unreferenced (AADL_Root);
+      pragma Unreferenced (Container);
 
       Buffer  : Location;
       Root    : constant Node_Id := New_Node (K_Root_Node, From);
@@ -1919,43 +1917,42 @@ package body Ocarina.FE_REAL.Parser is
       end if;
    end Process;
 
+   -----------------------
+   -- Load_REAL_Library --
+   -----------------------
+
+   procedure Load_REAL_Library (File_Name : Name_Id) is
+      use Ocarina.Files;
+      use Ocarina.Namet;
+
+      Buffer            : Location;
+      REAL_External_Lib : Node_Id;
+   begin
+      Buffer := Load_File (File_Name);
+      if Buffer = No_Location then
+         Display_And_Exit
+           ("could not load file " &
+              Get_Name_String (File_Name));
+      end if;
+
+      REAL_External_Lib := Process (No_Node, Buffer);
+      if No (REAL_External_Lib) then
+         Display_And_Exit ("could not parse REAL specification");
+      end if;
+
+      Register_Library_Theorems (REAL_External_Lib);
+   end Load_REAL_Library;
+
    ----------
    -- Init --
    ----------
 
    procedure Init is
-      use GNAT.Command_Line;
       use Ocarina.Parser;
       use Ocarina.Namet;
 
-      C : Character;
    begin
       Current_Theorem_Node := No_Node;
-
-      Initialize_Option_Scan;
-      loop
-         C := Getopt ("* real_lib: real_theorem: real_continue_eval");
-         case C is
-            when ASCII.NUL =>
-               exit;
-
-            when 'r' =>
-               if Full_Switch = "real_lib" then
-                  REAL_Libs.Append (Get_String_Name (Parameter));
-               end if;
-
-               if Full_Switch = "real_theorem" then
-                  Main_Theorem := Get_String_Name (Parameter);
-               end if;
-
-               if Full_Switch = "real_continue_eval" then
-                  Continue_Evaluation := True;
-               end if;
-
-            when others =>
-               null;
-         end case;
-      end loop;
 
       REAL_Language := Get_String_Name (Language);
       Register_Parser (Ocarina.ME_REAL.Tokens.Language, Process'Access);
@@ -1964,26 +1961,7 @@ package body Ocarina.FE_REAL.Parser is
       --  parse and register it.
 
       for J in REAL_Libs.First .. REAL_Libs.Last loop
-         declare
-            use Ocarina.Files;
-
-            Buffer            : Location;
-            REAL_External_Lib : Node_Id;
-         begin
-            Buffer := Load_File (REAL_Libs.Table (J));
-            if Buffer = No_Location then
-               Display_And_Exit
-                 ("could not load file " &
-                  Get_Name_String (REAL_Libs.Table (J)));
-            end if;
-
-            REAL_External_Lib := Process (No_Node, Buffer);
-            if No (REAL_External_Lib) then
-               Display_And_Exit ("could not parse REAL specification");
-            end if;
-
-            Register_Library_Theorems (REAL_External_Lib);
-         end;
+         Load_REAL_Library (REAL_Libs.Table (J));
       end loop;
    end Init;
 

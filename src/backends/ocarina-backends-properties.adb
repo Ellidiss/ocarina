@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
+--    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2020 ESA & ISAE.      --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -46,8 +46,7 @@ with Ocarina.Instances.Queries;
 with Ocarina.Backends.Utils;
 with Ocarina.Backends.Messages;
 
-with Ocarina.Backends.Properties.Utils;
-use Ocarina.Backends.Properties.Utils;
+with Ocarina.Backends.Properties.Utils; use Ocarina.Backends.Properties.Utils;
 
 package body Ocarina.Backends.Properties is
 
@@ -134,7 +133,8 @@ package body Ocarina.Backends.Properties is
    Thread_Deadline                       : Name_Id;
    Thread_Dispatch_Protocol              : Name_Id;
    Thread_Cheddar_Priority               : Name_Id;
-   Thread_Stack_Size                     : Name_Id;
+   Source_Stack_Size                     : Name_Id;
+   Stack_Size                            : Name_Id;
    Activate_Entrypoint                   : Name_Id;
    Activate_Entrypoint_Source_Text       : Name_Id;
    Initialize_Entrypoint                 : Name_Id;
@@ -152,10 +152,10 @@ package body Ocarina.Backends.Properties is
    -- Process component properties --
    ----------------------------------
 
-   Port_Number             : Name_Id;
-   Processor_Binding       : Name_Id;
-   Function_Binding        : Name_Id;
-   Memory_Binding          : Name_Id;
+   Port_Number       : Name_Id;
+   Processor_Binding : Name_Id;
+   Function_Binding  : Name_Id;
+   Memory_Binding    : Name_Id;
 
    Scheduling_Protocol                                   : Name_Id;
    PARAMETRIC_PROTOCOL_Name                              : Name_Id;
@@ -189,10 +189,20 @@ package body Ocarina.Backends.Properties is
    -- Processor component properties --
    ------------------------------------
 
+   Ada_Runtime               : Name_Id;
+   USER_CFLAGS               : Name_Id;
+   USER_LDFLAGS              : Name_Id;
+   USER_ENV                  : Name_Id;
    Location                  : Name_Id;
    Execution_Platform        : Name_Id;
    Scheduler_Quantum         : Name_Id;
    Cheddar_Scheduler_Quantum : Name_Id;
+
+   Frequency_Hz_Name         : Name_Id;
+   Frequency_Khz_Name        : Name_Id;
+   Frequency_Mhz_Name        : Name_Id;
+   Frequency_Ghz_Name        : Name_Id;
+   Processor_Frequency_Name  : Name_Id;
 
    ---------------------------------
    -- AADL Connections properties --
@@ -232,6 +242,7 @@ package body Ocarina.Backends.Properties is
 
    Data_Array_Name     : Name_Id;
    Data_Boolean_Name   : Name_Id;
+   Data_Bounded_Array_Name   : Name_Id;
    Data_Character_Name : Name_Id;
    Data_Enum_Name      : Name_Id;
    Data_Float_Name     : Name_Id;
@@ -271,6 +282,9 @@ package body Ocarina.Backends.Properties is
    Language_Simulink_Name        : Name_Id;
    Language_System_C_Name        : Name_Id;
    Language_VHDL_Name            : Name_Id;
+   Language_VDM_Name             : Name_Id;
+   Language_QGenAda_Name         : Name_Id;
+   Language_QGenC_Name           : Name_Id;
 
    Thread_Periodic_Name   : Name_Id;
    Thread_Aperiodic_Name  : Name_Id;
@@ -299,29 +313,25 @@ package body Ocarina.Backends.Properties is
    Platform_Bench_Name                  : Name_Id;
    Platform_Native_Compcert_Name        : Name_Id;
    Platform_LINUX32_Name                : Name_Id;
+   Platform_Linux_DLL_Name              : Name_Id;
    Platform_Win32_Name                  : Name_Id;
    Platform_LINUX32_Xenomai_Native_Name : Name_Id;
    Platform_LINUX32_Xenomai_Posix_Name  : Name_Id;
    Platform_LINUX64_Name                : Name_Id;
-   Platform_NDS_RTEMS_Name              : Name_Id;
-   Platform_NDS_RTEMS_POSIX_Name        : Name_Id;
-   Platform_Gumstix_RTEMS_Name          : Name_Id;
-   Platform_Gumstix_RTEMS_POSIX_Name    : Name_Id;
    Platform_LEON_RTEMS_Name             : Name_Id;
    Platform_LEON_RTEMS_POSIX_Name       : Name_Id;
    Platform_X86_LINUXTASTE_Name         : Name_Id;
-   Platform_X86_RTEMS_Name              : Name_Id;
-   Platform_X86_RTEMS_POSIX_Name        : Name_Id;
    Platform_LEON_GNAT_Name              : Name_Id;
    Platform_LEON_ORK_Name               : Name_Id;
    Platform_LEON3_SCOC3_Name            : Name_Id;
    Platform_LEON3_XM3_Name              : Name_Id;
    Platform_LEON3_Xtratum_Name          : Name_Id;
    Platform_ERC32_ORK_Name              : Name_Id;
-   Platform_ARM_DSLINUX_Name            : Name_Id;
-   Platform_ARM_N770_Name               : Name_Id;
    Platform_MARTE_OS_Name               : Name_Id;
    Platform_Vxworks_Name                : Name_Id;
+   Platform_GNAT_Runtime_Name           : Name_Id;
+   Platform_AIR_Name                    : Name_Id;
+   Platform_Air_IOP_Name                : Name_Id;
 
    Transport_BSD_Sockets_Name : Name_Id;
    Transport_SpaceWire_Name   : Name_Id;
@@ -700,7 +710,9 @@ package body Ocarina.Backends.Properties is
          --  case since the <..>_Name global variables are not (and
          --  cannot be) static.
 
-         if T_Name = Data_Array_Name then
+         if T_Name = Data_Array_Name or else
+           T_Name = Data_Bounded_Array_Name
+         then
             if not Is_Defined_List_Property (D, Dimension) then
                Display_Located_Error
                  (ATN.Loc (D),
@@ -715,7 +727,11 @@ package body Ocarina.Backends.Properties is
                   Fatal => True);
             end if;
 
-            return Data_Array;
+            if T_Name = Data_Array_Name then
+               return Data_Array;
+            else
+               return Data_Bounded_Array;
+            end if;
 
          elsif T_Name = Data_Boolean_Name then
             return Data_Boolean;
@@ -864,8 +880,10 @@ package body Ocarina.Backends.Properties is
    is
       pragma Assert (AINU.Is_Data (D));
 
-      function Get_IEEE754_Precision_Enumerator is new
-        Check_And_Get_Property_Enumerator (T => Supported_IEEE754_Precision);
+      function Get_IEEE754_Precision_Enumerator is
+         new Check_And_Get_Property_Enumerator
+        (T => Supported_IEEE754_Precision);
+
    begin
       return Get_IEEE754_Precision_Enumerator (D, IEEE754_Precision);
    end Get_IEEE754_Precision;
@@ -910,10 +928,10 @@ package body Ocarina.Backends.Properties is
    is
       pragma Assert (AINU.Is_Data (D));
 
-      function Get_Number_Representation_Enumerator is new
-        Check_And_Get_Property_Enumerator_With_Default
-        (T => Supported_Number_Representation,
-        Default_Value => None);
+      function Get_Number_Representation_Enumerator is
+         new Check_And_Get_Property_Enumerator_With_Default
+        (T             => Supported_Number_Representation,
+         Default_Value => None);
 
    begin
       return Get_Number_Representation_Enumerator (D, Number_Representation);
@@ -1090,14 +1108,15 @@ package body Ocarina.Backends.Properties is
    is
       pragma Assert (AINU.Is_Data (D));
 
-      function Get_Concurrency_Protocol_Enumerator is new
-        Check_And_Get_Property_Enumerator_With_Default
-        (T => Supported_Concurrency_Control_Protocol,
+      function Get_Concurrency_Protocol_Enumerator is
+         new Check_And_Get_Property_Enumerator_With_Default
+        (T             => Supported_Concurrency_Control_Protocol,
          Default_Value => None_Specified);
 
    begin
       return Get_Concurrency_Protocol_Enumerator
-        (D, Data_Concurrency_Protocol);
+          (D,
+           Data_Concurrency_Protocol);
    end Get_Concurrency_Protocol;
 
    -------------------------
@@ -1195,11 +1214,20 @@ package body Ocarina.Backends.Properties is
       elsif Source_L = Language_VHDL_Name then
          return Language_VHDL;
 
+      elsif Source_L = Language_VDM_Name then
+         return Language_VDM;
+
       elsif Source_L = Language_GUI_Name then
          return Language_Gui;
 
       elsif Source_L = Language_LUA_Name then
          return Language_Lua;
+
+      elsif Source_L = Language_QGenAda_Name then
+         return Language_QGenAda;
+
+      elsif Source_L = Language_QGenC_Name then
+         return Language_QGenC;
 
       else
          Display_Located_Error
@@ -1299,6 +1327,7 @@ package body Ocarina.Backends.Properties is
            Language_SDL_RTDS      |
            Language_System_C      |
            Language_SDL_OpenGEODE |
+           Language_VDM           |
            Language_VHDL          =>
             --  A subprogram having this language as implementation
             --  language is not supported.
@@ -1328,7 +1357,7 @@ package body Ocarina.Backends.Properties is
                --  and a null source name and a null source text is a
                --  wrong built subprogram.
 
-               return Subprogram_Opaque_C;
+               return Subprogram_Unknown;
             end if;
 
          when Language_CPP =>
@@ -1383,7 +1412,7 @@ package body Ocarina.Backends.Properties is
                return Subprogram_Unknown;
             end if;
 
-         when Language_Simulink =>
+         when Language_Simulink | Language_QGenC | Language_QGenAda =>
             return Subprogram_Simulink;
 
          when Language_Scade =>
@@ -1413,11 +1442,17 @@ package body Ocarina.Backends.Properties is
                      return Subprogram_Unknown;
                   end if;
                else
-                  --  A subprogram having no implementation language
-                  --  and a *null* call sequence list is an empty
-                  --  subprogram.
+                  if Has_Behavior_Specification (S) then
+                     --  A subprogram is defined using a behavior specification
 
-                  return Subprogram_Empty;
+                     return Subrogram_With_Behavior_Specification;
+                  else
+                     --  A subprogram having no implementation language
+                     --  and a *null* call sequence list and no behavior
+                     --  specification is an empty subprogram.
+
+                     return Subprogram_Empty;
+                  end if;
                end if;
             end if;
 
@@ -1548,6 +1583,12 @@ package body Ocarina.Backends.Properties is
 
             return Thread_Hybrid;
          elsif P_Name = Thread_Timed_Name then
+            if not Is_Defined_Integer_Property (T, Thread_Period) then
+               Display_Located_Error
+                 (AIN.Loc (T),
+                  "Timed threads must have a period",
+                  Fatal => True);
+            end if;
             return Thread_Timed;
 
          elsif P_Name = Thread_Background_Name then
@@ -1702,7 +1743,8 @@ package body Ocarina.Backends.Properties is
       pragma Assert (Is_Thread (T));
 
       case Get_Thread_Dispatch_Protocol (T) is
-         when Thread_Periodic | Thread_Sporadic | Thread_Hybrid | Thread_ISR =>
+         when Thread_Periodic | Thread_Sporadic | Thread_Hybrid |
+              Thread_Timed | Thread_ISR =>
             --  We are sure the thread has a period
 
             The_Period := Get_Time_Property_Value (T, Thread_Period);
@@ -1937,10 +1979,15 @@ package body Ocarina.Backends.Properties is
    ---------------------------
 
    function Get_Thread_Stack_Size (T : Node_Id) return Size_Type is
-   begin
       pragma Assert (Is_Thread (T));
-
-      return (Get_Size_Property_Value (T, Thread_Stack_Size));
+      Source_Stack_Size_Value : constant Size_Type :=
+        Get_Size_Property_Value (T, Source_Stack_Size);
+   begin
+      if Source_Stack_Size_Value = Null_Size then
+         return Get_Size_Property_Value (T, Stack_Size);
+      else
+         return Source_Stack_Size_Value;
+      end if;
    end Get_Thread_Stack_Size;
 
    ------------------------------------
@@ -2051,6 +2098,8 @@ package body Ocarina.Backends.Properties is
             Result := Thread_With_Compute_Entrypoint;
          elsif CS_Cnt >= 1 then
             Result := Thread_With_Call_Sequence;
+         elsif Has_Behavior_Specification (T) then
+            Result := Thread_With_Behavior_Specification;
          end if;
       end if;
 
@@ -2223,7 +2272,8 @@ package body Ocarina.Backends.Properties is
    -------------------------
 
    function Get_Bound_Processor (P : Node_Id) return Node_Id is
-      pragma Assert (Is_Process_Or_Device (P));
+      pragma Assert (Is_Process_Or_Device (P) or else Is_Thread (P));
+
    begin
       if not Is_Defined_Reference_Property (P, Processor_Binding)
         and then Is_Process (P)
@@ -2241,6 +2291,24 @@ package body Ocarina.Backends.Properties is
 
       return Get_Reference_Property (P, Processor_Binding);
    end Get_Bound_Processor;
+
+   ---------------------------
+   -- Get_Bound_Processor_L --
+   ---------------------------
+
+   function Get_Bound_Processor_L (P : Node_Id) return List_Id is
+   begin
+      if not Is_Defined_Reference_Property (P, Processor_Binding)
+        and then Is_Process (P)
+      then
+         Display_Located_Error
+           (AIN.Loc (Parent_Subcomponent (P)),
+            "This process has to be bound to a processor",
+            Fatal => True);
+      end if;
+
+      return Get_List_Property (P, Processor_Binding);
+   end Get_Bound_Processor_L;
 
    ----------------------
    -- Get_Bound_Memory --
@@ -2287,38 +2355,52 @@ package body Ocarina.Backends.Properties is
 
       if not Is_System (Parent_Component (C)) then
          return No_Node;
+
       elsif Is_System (Parent_Component (C))
         and then Is_Process
           (Parent_Component (Get_Referenced_Entity (AIN.Source (C))))
         and then Is_Process
           (Parent_Component (Get_Referenced_Entity (AIN.Destination (C))))
         and then
-          Get_Execution_Platform
+        ((Get_Execution_Platform
             (Get_Bound_Processor
                (Parent_Component (Get_Referenced_Entity (AIN.Source (C))))) =
-          Platform_LEON3_XM3
+            Platform_LEON3_XM3
+            and then
+            Get_Execution_Platform
+              (Get_Bound_Processor
+                 (Parent_Component
+                    (Get_Referenced_Entity (AIN.Destination (C))))) =
+            Platform_LEON3_XM3)
+           or else
+           (Get_Execution_Platform
+              (Get_Bound_Processor
+                 (Parent_Component (Get_Referenced_Entity (AIN.Source (C))))) =
+              Platform_AIR
+              and then
+              Get_Execution_Platform
+                (Get_Bound_Processor
+                   (Parent_Component
+                      (Get_Referenced_Entity (AIN.Destination (C))))) =
+              Platform_AIR))
         and then
-          Get_Execution_Platform
-            (Get_Bound_Processor
-               (Parent_Component
-                  (Get_Referenced_Entity (AIN.Destination (C))))) =
-          Platform_LEON3_XM3
-        and then
-          Parent_Component
-            (Parent_Subcomponent
-               (Parent_Component
-                  (Get_Referenced_Entity (AIN.Destination (C))))) =
-          Parent_Component
-            (Parent_Subcomponent
-               (Parent_Component (Get_Referenced_Entity (AIN.Source (C)))))
+        Parent_Component
+          (Parent_Subcomponent
+             (Parent_Component
+                (Get_Referenced_Entity (AIN.Destination (C))))) =
+        Parent_Component
+        (Parent_Subcomponent
+           (Parent_Component (Get_Referenced_Entity (AIN.Source (C)))))
       then
          return No_Node;
+
       elsif not Is_Defined_List_Property (C, Connection_Binding) then
          if Check then
             Display_Located_Error
               (AIN.Loc (C),
                "This connection has to be bound to a bus",
                Fatal => True);
+
          else
             --  We do not enforce connection binding for the remaining
             --  generators.
@@ -2383,14 +2465,6 @@ package body Ocarina.Backends.Properties is
             return Platform_Bench;
          elsif P_Name = Platform_Native_Compcert_Name then
             return Platform_Native_Compcert;
-         elsif P_Name = Platform_Gumstix_RTEMS_POSIX_Name then
-            return Platform_Gumstix_RTEMS_POSIX;
-         elsif P_Name = Platform_Gumstix_RTEMS_Name then
-            return Platform_Gumstix_RTEMS;
-         elsif P_Name = Platform_NDS_RTEMS_POSIX_Name then
-            return Platform_NDS_RTEMS_POSIX;
-         elsif P_Name = Platform_NDS_RTEMS_Name then
-            return Platform_NDS_RTEMS;
          elsif P_Name = Platform_LEON_RTEMS_POSIX_Name then
             return Platform_LEON_RTEMS_POSIX;
          elsif P_Name = Platform_LEON_RTEMS_Name then
@@ -2399,6 +2473,8 @@ package body Ocarina.Backends.Properties is
             return Platform_X86_LINUXTASTE;
          elsif P_Name = Platform_LINUX32_Name then
             return Platform_LINUX32;
+         elsif P_Name = Platform_LINUX_DLL_Name then
+            return Platform_LINUX_DLL;
          elsif P_Name = Platform_Win32_Name then
             return Platform_WIN32;
          elsif P_Name = Platform_LINUX32_Xenomai_Native_Name then
@@ -2407,10 +2483,6 @@ package body Ocarina.Backends.Properties is
             return Platform_LINUX32_XENOMAI_POSIX;
          elsif P_Name = Platform_LINUX64_Name then
             return Platform_LINUX64;
-         elsif P_Name = Platform_X86_RTEMS_POSIX_Name then
-            return Platform_X86_RTEMS_POSIX;
-         elsif P_Name = Platform_X86_RTEMS_Name then
-            return Platform_X86_RTEMS;
          elsif P_Name = Platform_LEON_GNAT_Name then
             return Platform_LEON_GNAT;
          elsif P_Name = Platform_LEON_ORK_Name then
@@ -2423,14 +2495,16 @@ package body Ocarina.Backends.Properties is
             return Platform_LEON3_XTRATUM;
          elsif P_Name = Platform_ERC32_ORK_Name then
             return Platform_ERC32_ORK;
-         elsif P_Name = Platform_ARM_DSLINUX_Name then
-            return Platform_ARM_DSLINUX;
-         elsif P_Name = Platform_ARM_N770_Name then
-            return Platform_ARM_N770;
          elsif P_Name = Platform_MARTE_OS_Name then
             return Platform_MARTE_OS;
          elsif P_Name = Platform_Vxworks_Name then
             return Platform_VxWorks;
+         elsif P_Name = Platform_GNAT_Runtime_Name then
+            return Platform_GNAT_Runtime;
+         elsif P_Name = Platform_AIR_Name then
+            return Platform_AIR;
+         elsif P_Name = Platform_AIR_IOP_Name then
+            return Platform_AIR_IOP;
          else
             return Platform_None;
          end if;
@@ -2438,6 +2512,50 @@ package body Ocarina.Backends.Properties is
          return Platform_None;
       end if;
    end Get_Execution_Platform;
+
+   ---------------------
+   -- Get_Ada_Runtime --
+   ---------------------
+
+   function Get_Ada_Runtime (P : Node_Id) return Name_Id is
+      pragma Assert
+        (AINU.Is_Processor (P) or else AINU.Is_Virtual_Processor (P));
+   begin
+      return Get_String_Property (P, Ada_Runtime);
+   end Get_Ada_Runtime;
+
+   ---------------------
+   -- Get_USER_CFLAGS --
+   ---------------------
+
+   function Get_USER_CFLAGS (P : Node_Id) return Name_Id is
+      pragma Assert
+        (AINU.Is_Processor (P) or else AINU.Is_Virtual_Processor (P));
+   begin
+      return Get_String_Property (P, USER_CFLAGS);
+   end Get_USER_CFLAGS;
+
+   ---------------------
+   -- Get_USER_LDFLAGS --
+   ---------------------
+
+   function Get_USER_LDFLAGS (P : Node_Id) return Name_Id is
+      pragma Assert
+        (AINU.Is_Processor (P) or else AINU.Is_Virtual_Processor (P));
+   begin
+      return Get_String_Property (P, USER_LDFLAGS);
+   end Get_USER_LDFLAGS;
+
+   ------------------
+   -- Get_USER_ENV --
+   ------------------
+
+   function Get_USER_ENV (P : Node_Id) return Name_Id is
+      pragma Assert
+        (AINU.Is_Processor (P) or else AINU.Is_Virtual_Processor (P));
+   begin
+      return Get_String_Property (P, USER_ENV);
+   end Get_USER_ENV;
 
    -----------------------
    -- Get_Transport_API --
@@ -2762,7 +2880,7 @@ package body Ocarina.Backends.Properties is
 
    procedure Init is
    begin
-      Core_Id := Get_String_Name ("processor_properties::core_id");
+      Core_Id          := Get_String_Name ("processor_properties::core_id");
       Source_Language  := Get_String_Name ("source_language");
       Source_Name      := Get_String_Name ("source_name");
       T_Source_Name    := Get_String_Name ("transformations::source_name");
@@ -2813,7 +2931,8 @@ package body Ocarina.Backends.Properties is
       Thread_Dispatch_Protocol := Get_String_Name ("dispatch_protocol");
       Thread_Cheddar_Priority  :=
         Get_String_Name ("cheddar_properties::fixed_priority");
-      Thread_Stack_Size := Get_String_Name ("source_stack_size");
+      Source_Stack_Size := Get_String_Name ("source_stack_size");
+      Stack_Size := Get_String_Name ("stack_size");
 
       Port_Timing                := Get_String_Name ("timing");
       Port_Timing_Sampled_Name   := Get_String_Name ("sampled");
@@ -2834,15 +2953,26 @@ package body Ocarina.Backends.Properties is
       Processor_Binding := Get_String_Name ("actual_processor_binding");
       Function_Binding  :=
         Get_String_Name ("aram_properties::actual_function_binding");
-      Memory_Binding          := Get_String_Name ("actual_memory_binding");
-      Byte_Count              := Get_String_Name ("byte_count");
-      Word_Size               := Get_String_Name ("word_size");
+      Memory_Binding := Get_String_Name ("actual_memory_binding");
+      Byte_Count     := Get_String_Name ("byte_count");
+      Word_Size      := Get_String_Name ("word_size");
 
+      Ada_Runtime := Get_String_Name ("deployment::ada_runtime");
+      USER_CFLAGS := Get_String_Name ("deployment::user_cflags");
+      USER_LDFLAGS := Get_String_Name ("deployment::user_ldflags");
+      USER_ENV     := Get_String_Name ("deployment::user_env");
       Location                  := Get_String_Name ("deployment::location");
       Execution_Platform := Get_String_Name ("deployment::execution_platform");
       Scheduler_Quantum         := Get_String_Name ("scheduler_quantum");
       Cheddar_Scheduler_Quantum :=
         Get_String_Name ("cheddar_properties::scheduler_quantum");
+
+      Frequency_Hz_Name := Get_String_Name ("hz");
+      Frequency_Khz_Name := Get_String_Name ("khz");
+      Frequency_Mhz_Name := Get_String_Name ("mhz");
+      Frequency_Ghz_Name := Get_String_Name ("ghz");
+      Processor_Frequency_Name :=
+        Get_String_Name ("processor_properties::processor_frequency");
 
       Connection_Binding := Get_String_Name ("actual_connection_binding");
 
@@ -2854,6 +2984,7 @@ package body Ocarina.Backends.Properties is
       Memory_Size         := Get_String_Name ("memory_size");
       Data_Array_Name     := Get_String_Name ("array");
       Data_Boolean_Name   := Get_String_Name ("boolean");
+      Data_Bounded_Array_Name := Get_String_Name ("bounded_array");
       Data_Character_Name := Get_String_Name ("character");
       Data_Enum_Name      := Get_String_Name ("enum");
       Data_Float_Name     := Get_String_Name ("float");
@@ -2893,7 +3024,10 @@ package body Ocarina.Backends.Properties is
       Language_RTDS_Name            := Get_String_Name ("rtds");
       Language_SDL_RTDS_Name        := Get_String_Name ("sdl_rtds");
       Language_VHDL_Name            := Get_String_Name ("vhdl");
+      Language_VDM_Name             := Get_String_Name ("vdm");
       Language_System_C_Name        := Get_String_Name ("system_c");
+      Language_QGenAda_Name         := Get_String_Name ("qgenada");
+      Language_QGenC_Name           := Get_String_Name ("qgenc");
 
       Thread_Periodic_Name   := Get_String_Name ("periodic");
       Thread_Aperiodic_Name  := Get_String_Name ("aperiodic");
@@ -2914,17 +3048,9 @@ package body Ocarina.Backends.Properties is
       Platform_Native_Name              := Get_String_Name ("native");
       Platform_Bench_Name               := Get_String_Name ("bench");
       Platform_Native_Compcert_Name     := Get_String_Name ("native_compcert");
-      Platform_Gumstix_RTEMS_Name       := Get_String_Name ("gumstix_rtems");
-      Platform_Gumstix_RTEMS_POSIX_Name :=
-        Get_String_Name ("gumstix_rtems_posix");
-
-      Platform_NDS_RTEMS_Name       := Get_String_Name ("nds_rtems");
-      Platform_NDS_RTEMS_POSIX_Name := Get_String_Name ("nds_rtems_posix");
-
-      Platform_X86_RTEMS_Name              := Get_String_Name ("x86_rtems");
-      Platform_X86_RTEMS_POSIX_Name := Get_String_Name ("x86_rtems_posix");
-      Platform_LINUX32_Name                := Get_String_Name ("linux32");
-      Platform_Win32_Name                  := Get_String_Name ("win32");
+      Platform_LINUX32_Name             := Get_String_Name ("linux32");
+      Platform_LINUX_DLL_Name           := Get_String_Name ("linux_dll");
+      Platform_Win32_Name               := Get_String_Name ("win32");
       Platform_LINUX32_Xenomai_Native_Name :=
         Get_String_Name ("linux32_xenomai_native");
       Platform_LINUX32_Xenomai_Posix_Name :=
@@ -2939,10 +3065,11 @@ package body Ocarina.Backends.Properties is
       Platform_LEON3_XM3_Name        := Get_String_Name ("leon3_xm3");
       Platform_LEON3_Xtratum_Name    := Get_String_Name ("leon3_xtratum");
       Platform_ERC32_ORK_Name        := Get_String_Name ("erc32_ork");
-      Platform_ARM_DSLINUX_Name      := Get_String_Name ("arm_dslinux");
-      Platform_ARM_N770_Name         := Get_String_Name ("arm_n770");
       Platform_MARTE_OS_Name         := Get_String_Name ("marte_os");
       Platform_Vxworks_Name          := Get_String_Name ("vxworks");
+      Platform_GNAT_Runtime_Name     := Get_String_Name ("gnat_runtime");
+      Platform_AIR_Name              := Get_String_Name ("air");
+      Platform_AIR_IOP_Name          := Get_String_Name ("air_iop");
 
       Transport_BSD_Sockets_Name := Get_String_Name ("bsd_sockets");
       Transport_SpaceWire_Name   := Get_String_Name ("spacewire");
@@ -3545,7 +3672,7 @@ package body Ocarina.Backends.Properties is
       Res            : Time_Array (0 .. 1);
       Property_Value : Node_Id;
       Range_Node     : Node_Id;
-      use Ocarina.AADL_Values;
+
    begin
       if Is_Defined_Property (E, Compute_Execution_Time) then
          --  CRAP !!
@@ -3698,9 +3825,10 @@ package body Ocarina.Backends.Properties is
    ------------------------------
 
    function Get_POK_Slots_Allocation (E : Node_Id) return List_Id is
+      pragma Assert (AINU.Is_Processor (E));
+
       L : List_Id;
    begin
-      pragma Assert (AINU.Is_Processor (E));
       if Is_Defined_Property (E, POK_Slots_Allocation) then
          L := Get_List_Property (E, POK_Slots_Allocation);
          if L /= No_List then
@@ -4072,7 +4200,8 @@ package body Ocarina.Backends.Properties is
    function Get_Driver_Name (Device : Node_Id) return Name_Id is
    begin
       return Check_And_Get_Property
-        (Device, Get_String_Name ("deployment::driver_name"));
+          (Device,
+           Get_String_Name ("deployment::driver_name"));
    end Get_Driver_Name;
 
    -----------------------
@@ -4082,7 +4211,8 @@ package body Ocarina.Backends.Properties is
    function Get_Configuration (Device : Node_Id) return Name_Id is
    begin
       return Check_And_Get_Property
-        (Device, Get_String_Name ("deployment::configuration"));
+          (Device,
+           Get_String_Name ("deployment::configuration"));
    end Get_Configuration;
 
    ----------------------------
@@ -4147,5 +4277,64 @@ package body Ocarina.Backends.Properties is
    begin
       return Check_And_Get_Property (D, Core_Id);
    end Get_Core_Id;
+
+   ----------------------------------
+   -- Get_Frequency_Property_Value --
+   ----------------------------------
+
+   function Get_Frequency_Property_Value
+     (C             : Node_Id;
+      Property_Name : Name_Id) return Frequency_Type
+    is
+      V      : Node_Id;
+      U      : Node_Id;
+      Result : Frequency_Type;
+      N      : Name_Id;
+   begin
+      if Is_Defined_Integer_Property (C, Property_Name) then
+         V := Get_Value_Of_Property_Association (C, Property_Name);
+
+         if Present (V) and then Present (Unit_Identifier (V)) then
+            U := Unit_Identifier (V);
+
+            --  Get the size
+
+            Result.S := Get_Integer_Property (C, Property_Name);
+
+            --  Convert the value to its unit
+
+            N := ATN.Name (U);
+
+            if N = Frequency_Hz_Name then
+               Result.F := Hz;
+            elsif N = Frequency_Khz_Name then
+               Result.F := Khz;
+            elsif N = Frequency_Mhz_Name then
+               Result.F := Mhz;
+            elsif N = Frequency_Ghz_Name then
+               Result.F := Ghz;
+            else
+               Display_Located_Error
+                 (AIN.Loc (U),
+                  "Wrong unit",
+                  Fatal => True);
+               return ((0, Hz));
+            end if;
+         end if;
+         return Result;
+      else
+         return ((0, Hz));
+      end if;
+   end Get_Frequency_Property_Value;
+
+   -----------------------------
+   -- Get_Processor_Frequency --
+   -----------------------------
+
+   function Get_Processor_Frequency (P : Node_Id) return Frequency_Type is
+      pragma Assert (AINU.Is_Processor (P));
+   begin
+      return Get_Frequency_Property_Value (P, Processor_Frequency_Name);
+   end Get_Processor_Frequency;
 
 end Ocarina.Backends.Properties;

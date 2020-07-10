@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---    Copyright (C) 2005-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
+--    Copyright (C) 2005-2009 Telecom ParisTech, 2010-2019 ESA & ISAE.      --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,7 +33,14 @@ with Ocarina.Backends.Properties; use Ocarina.Backends.Properties;
 
 package Ocarina.Backends.Utils is
 
-   type Browsing_Kind is (By_Source, By_Destination, Default);
+   -----------------
+   -- AST visitor --
+   -----------------
+
+   generic
+      with procedure Visit (E : Node_Id);
+   procedure Visit_Subcomponents_Of_G (E : Node_Id);
+   --  Visit the component instance corresponding to the subcomponents of E
 
    --------------------------
    -- Directory Operations --
@@ -58,6 +65,9 @@ package Ocarina.Backends.Utils is
    function Remove_Directory_Separator (Path : Name_Id) return Name_Id;
    --  If there is a directory separator at the end of the path, then
    --  remove it and return the result. Else, return the same string.
+
+   procedure Copy_Directory (From : String; Dest : String);
+   --  Copy directory pointed by 'from' to 'dest'
 
    ----------
    -- Misc --
@@ -186,15 +196,11 @@ package Ocarina.Backends.Utils is
       H_Ada_Helpers_Spec,
       H_Ada_Marshallers_Body,
       H_Ada_Marshallers_Spec,
-      H_Ada_Namespaces_Body,
-      H_Ada_Namespaces_Spec,
       H_Ada_Subprogram_Body,
       H_Ada_Subprogram_Spec,
       H_Ada_Type_Body,
       H_Ada_Type_Default_Value,
       H_Ada_Type_Spec,
-      H_Add_Case_Alternative_Internals_Spec,
-      H_Add_Case_Alternative_SSRA_Body,
       H_C_Marshall_Body,
       H_C_Marshall_Spec,
       H_C_Stub_Body,
@@ -213,11 +219,7 @@ package Ocarina.Backends.Utils is
       H_PN_Interconnection,
       H_PN_To_Delete,
       H_PN_Port_Creation,
-      H_PN_Proc_Creation,
-      H_RTSJ_Subprogram_Spec,
-      H_RTSJ_Subprogram_Body,
-      H_RTSJ_Type,
-      H_RTSJ_Deployment);
+      H_PN_Proc_Creation);
    --  These are tags to precise the meaning of "handle"
 
    type Connection_Pattern_Kind is (Inter_Process, Intra_Process);
@@ -419,6 +421,7 @@ package Ocarina.Backends.Utils is
 
    function To_Seconds (S : Time_Type) return Long_Double;
    function To_Milliseconds (S : Time_Type) return Unsigned_Long_Long;
+   function To_Microseconds (S : Time_Type) return Unsigned_Long_Long;
    function To_Nanoseconds (S : Time_Type) return Unsigned_Long_Long;
 
    function Get_Accessed_Data (Data_Access : Node_Id) return Node_Id;
@@ -484,15 +487,33 @@ package Ocarina.Backends.Utils is
 
    function Get_Associated_Bus (Port : Node_Id) return Node_Id;
 
-   function Find_Associated_Process (Runtime       : Node_Id;
-                                     Root_Node     : Node_Id := No_Node)
-                                     return Node_Id;
+   function Find_Associated_Process
+     (Runtime   : Node_Id;
+      Root_Node : Node_Id := No_Node) return Node_Id;
 
-   function Get_Partition_Runtime (Process    : Node_Id;
-                                   Root_Node  : Node_Id := No_Node)
-                                     return Node_Id;
+   function Get_Partition_Runtime
+     (Process   : Node_Id;
+      Root_Node : Node_Id := No_Node) return Node_Id;
 
-   function Get_Root_Component (C : Node_Id)
-                               return Node_Id;
+   function Get_Root_Component (C : Node_Id) return Node_Id;
+
+   function Get_Core_Id (D : Node_Id) return Unsigned_Long_Long;
+   --  Return the id of the core D is bound to
+
+   function Is_Core (VP : Node_Id) return Boolean;
+   --  Return true iff VP is a virtual processor denoting a core,
+   --  i.e. it has the Processors::Core_Id property defined.
+
+   function Is_Partition (VP : Node_Id) return Boolean;
+   --  Return true iff VP is a virtual processor denoting a logical
+   --  partition, i.e. it has the Deployment::Deployment_Platform
+   --  property defined.
+
+   function Get_Number_Of_Cores (P : Node_Id) return Unsigned_Long_Long;
+   --  Return the number of cores attached to the processor P
+
+   function Has_Behavior_Specification (E : Node_Id) return Boolean;
+   --  Return True IFF the subprogram instance E contains a Behavior
+   --  Specification.
 
 end Ocarina.Backends.Utils;

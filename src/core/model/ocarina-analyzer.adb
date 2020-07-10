@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---       Copyright (C) 2009 Telecom ParisTech, 2010-2015 ESA & ISAE.        --
+--       Copyright (C) 2009 Telecom ParisTech, 2010-2016 ESA & ISAE.        --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -31,18 +31,19 @@
 
 with Charset;
 with Ocarina.Namet;
-with Ocarina.Output;
 
 with GNAT.Table;
 
 with Ocarina.Analyzer.AADL;
 with Ocarina.Analyzer.REAL;
+with Ocarina.Analyzer.AADL_EMA;
+with Ocarina.Analyzer.AADL_BA;
 
 package body Ocarina.Analyzer is
 
    use Charset;
+
    use Ocarina.Namet;
-   use Ocarina.Output;
 
    type Analyzer_Record is record
       Language : Name_Id;
@@ -63,11 +64,8 @@ package body Ocarina.Analyzer is
          end if;
       end loop;
 
-      Set_Standard_Error;
-      Write_Line
-        ("Analyzers : Cannot find language " & Get_Name_String (Language));
-      Set_Standard_Output;
-      return False;
+      raise Program_Error with
+        "Analyzers : Cannot find language " & Get_Name_String (Language);
    end Analyze;
 
    --------------------
@@ -78,6 +76,8 @@ package body Ocarina.Analyzer is
    begin
       Ocarina.Analyzer.AADL.Init;
       Ocarina.Analyzer.REAL.Init;
+      Ocarina.Analyzer.AADL_EMA.Init;
+      Ocarina.Analyzer.AADL_BA.Init;
    end Init_Analyzers;
 
    ---------------------
@@ -89,6 +89,8 @@ package body Ocarina.Analyzer is
       Analyzers.Init;
       Ocarina.Analyzer.AADL.Reset;
       Ocarina.Analyzer.REAL.Reset;
+      Ocarina.Analyzer.AADL_EMA.Reset;
+      Ocarina.Analyzer.AADL_BA.Reset;
    end Reset_Analyzers;
 
    -----------------------
@@ -99,23 +101,20 @@ package body Ocarina.Analyzer is
      (Language : String;
       Analyzer : Analyzer_Subprogram)
    is
-      N : Name_Id;
+      N : constant Name_Id := Get_String_Name (To_Lower (Language));
+
    begin
-      N := Get_String_Name (To_Lower (Language));
       for B in Analyzers.First .. Analyzers.Last loop
          if Analyzers.Table (B).Language = N then
-            Set_Standard_Error;
-            Write_Line ("Cannot register twice analyzer " & Language);
-            Set_Standard_Output;
+            raise Program_Error with
+              "Cannot register twice analyzer " & Language;
          end if;
       end loop;
 
-      if Language'Length > 0 then
-         Analyzers.Increment_Last;
-         Set_Str_To_Name_Buffer (Language);
-         Analyzers.Table (Analyzers.Last).Language := Name_Find;
-         Analyzers.Table (Analyzers.Last).Analyzer := Analyzer;
-      end if;
+      Analyzers.Increment_Last;
+      Set_Str_To_Name_Buffer (Language);
+      Analyzers.Table (Analyzers.Last).Language := Name_Find;
+      Analyzers.Table (Analyzers.Last).Analyzer := Analyzer;
    end Register_Analyzer;
 
 end Ocarina.Analyzer;

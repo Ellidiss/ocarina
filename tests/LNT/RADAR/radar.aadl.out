@@ -1,0 +1,118 @@
+------------------------------------------
+---------- Ocarina LNT Generator ---------
+------------------------------------------
+
+radar.aadl:9:03: warning: aerial references a component type
+radar.aadl:10:03: warning: rotor references a component type
+radar.aadl:11:03: warning: monitor references a component type
+radar.aadl:13:03: warning: cpu references a component type
+radar.aadl:14:03: warning: VME references a component type
+radar.aadl:15:03: warning: RAM references a component type
+ocarina: Total: 0 error and 6 warnings
+Begin Thread
+Begin Processor
+Begin Types
+Begin Main
+radar.aadl:85:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+radar.aadl:108:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+radar.aadl:109:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+radar.aadl:111:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+radar.aadl:136:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+radar.aadl:171:03 Backends: warning : LNT generation requires the definition of Queue_Size property. For this generation, the default  value (Queue_Size = 3) is used.
+Begin Port
+module LNT_Generic_Process_For_Port_Connections (Types) is 
+-- No Behavior Annex
+--  data port --
+   process Data_Port [
+   Input: LNT_Channel_Port, 
+   Output: LNT_Channel_Port] 
+   is 
+      var Data : LNT_Type_Data in
+         Data := EMPTY;
+         loop 
+            select 
+               Input (?Data)
+               [] 
+               Output (Data)
+            end select 
+         end loop
+      end var
+   end process
+   
+--  event port --
+--  for no periodic threads --
+   process Event_Port [
+   Input: LNT_Channel_Port, 
+   Output: LNT_Channel_Port, 
+   Notify: LNT_Channel_Event](
+   Queue_Size: Nat) 
+   is 
+      var 
+         Data : LNT_Type_Data,
+         FIFO : LNT_Type_Data_FIFO,
+         Is_New : bool
+      in 
+         FIFO := {};
+         Data := EMPTY;
+         Is_New := false; 
+         loop 
+            select 
+               Input (?Data); 
+               Is_New := true;
+               if length (FIFO) >= Queue_Size then
+                  FIFO := tail (FIFO)
+               end if;
+               FIFO := append (Data, FIFO)
+               []
+               if (FIFO != {}) then 
+                  Output (Head (FIFO));
+                  FIFO := tail (FIFO)
+               else
+                  Output (EMPTY)
+               end if
+               []
+               if (Is_New) then 
+                  Notify (Incoming_Event); 
+                  Is_New := false
+               else 
+                  Notify (No_Event)
+               end if
+            end select 
+         end loop
+      end var
+   end process
+
+-- for periodic threads
+   process Event_Port_For_Periodic [
+   Input: LNT_Channel_Port, 
+   Output: LNT_Channel_Port](
+   Queue_Size: Nat) 
+   is 
+      var 
+         Data : LNT_Type_Data,
+         FIFO : LNT_Type_Data_FIFO,
+         Is_New : bool
+      in 
+         FIFO := {};
+         Data := EMPTY;
+         Is_New := false; 
+         loop 
+            select 
+               Input (?Data); 
+               Is_New := true;
+               if length (FIFO) >= Queue_Size then
+                  FIFO := tail (FIFO)
+               end if;
+               FIFO := append (Data, FIFO)
+               []
+               if (FIFO != {}) then 
+                  Output (Head (FIFO));
+                  FIFO := tail (FIFO)
+               else
+                  Output (EMPTY)
+               end if
+            end select 
+         end loop
+      end var
+   end process
+end module

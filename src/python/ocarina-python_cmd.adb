@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                   Copyright (C) 2014-2015 ESA & ISAE.                    --
+--                   Copyright (C) 2014-2017 ESA & ISAE.                    --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -34,10 +34,10 @@ pragma Warnings (Off);
 
 with GNATCOLL.Scripts;           use GNATCOLL.Scripts;
 with GNATCOLL.Scripts.Python;    use GNATCOLL.Scripts.Python;
+with GNATCOLL.VFS;               use GNATCOLL.VFS;
 
 with Ocarina.Configuration;      use Ocarina.Configuration;
-
-with GNATCOLL.VFS;               use GNATCOLL.VFS;
+with Ocarina.Options;            use Ocarina.Options;
 with Ocarina.Output;             use Ocarina.Output;
 
 with Errors;
@@ -48,13 +48,78 @@ with Ocarina.ME_AADL.AADL_Tree.Nodes.Python;
 with Ocarina.ME_AADL.AADL_Instances.Nodes.Python;
 with Ocarina.ME_AADL.AADL_Tree.Entities;
 
-with Ocarina.Namet;
+with Ocarina.Namet; use Ocarina.Namet;
+with Ocarina.Backends.Properties.Utils;
+with Ocarina.Backends.Utils;     use Ocarina.Backends.Utils;
+with GNAT.Os_Lib; use GNAT.Os_Lib;
+with Ocarina.ME_AADL.AADL_Instances.Nutils;
+with Ocarina.ME_AADL.AADL_Instances.Nodes;
+use Ocarina.ME_AADL.AADL_Instances.Nodes;
 
 package body Ocarina.Python_Cmd is
 
    package ATE renames Ocarina.ME_AADL.AADL_Tree.Entities;
    package ATNP renames Ocarina.ME_AADL.AADL_Tree.Nodes.Python;
    package AINP renames Ocarina.ME_AADL.AADL_Instances.Nodes.Python;
+   package AINU renames Ocarina.ME_AADL.AADL_Instances.Nutils;
+   procedure Get_Node_Id (Data : in out Callback_Data'Class; N : String);
+   procedure Get_Property_Value (Data : in out Callback_Data'Class;
+      PropId : String; PropName : String);
+   procedure Get_Property_Value_By_Name (Data : in out Callback_Data'Class;
+      PropId : String; PropName : String);
+
+   ------------------------
+   -- Get_Property_Value --
+   ------------------------
+
+   procedure Get_Property_Value (Data : in out Callback_Data'Class;
+                                 PropId : String; PropName : String)
+   is
+      Result : constant String_List :=
+        Ocarina.Backends.Properties.Utils.Check_And_Get_Property
+        (Get_Node_Id_From_String (PropId),
+         Get_Node_Id_From_String (PropName));
+   begin
+      Set_Return_Value_As_List (Data);
+
+      for Elt of Result loop
+         Set_Return_Value (Data, Elt.all);
+      end loop;
+
+      --  XXX should free Result
+   end Get_Property_Value;
+
+   --------------------------------
+   -- Get_Property_Value_By_Name --
+   --------------------------------
+
+   procedure Get_Property_Value_By_Name (Data : in out Callback_Data'Class;
+                                         PropId : String; PropName : String)
+   is
+      Result : constant String_List :=
+        Ocarina.Backends.Properties.Utils.Check_And_Get_Property
+        (Get_Node_Id_From_String (PropId),
+         Get_String_Name (PropName));
+   begin
+      Set_Return_Value_As_List (Data);
+
+      for Elt of Result loop
+         Set_Return_Value (Data, Elt.all);
+      end loop;
+
+      --  XXX should free Result
+   end Get_Property_Value_By_Name;
+
+   -----------------
+   -- Get_Node_Id --
+   -----------------
+
+   procedure Get_Node_Id (Data : in out Callback_Data'Class;
+      N : String) is
+   begin
+      Set_Return_Value (Data, Integer'Image (Integer
+         (Namet.Get_String_Name (N))));
+   end Get_Node_Id;
 
    --------------
    -- On_Reset --
@@ -136,6 +201,44 @@ package body Ocarina.Python_Cmd is
       Set_Return_Value (Data, Result);
    end On_Instantiate;
 
+   -------------------------
+   -- On_Set_REAL_Theorem --
+   -------------------------
+
+   procedure On_Set_REAL_Theorem
+     (Data : in out Callback_Data'Class; Command : String);
+
+   procedure On_Set_REAL_Theorem
+     (Data : in out Callback_Data'Class;
+      Command : String)
+   is
+      pragma Unreferenced (Command);
+      Result : constant Boolean :=
+        Ocarina.Utils.Set_REAL_Theorem (Nth_Arg (Data, 1, ""));
+
+   begin
+      Set_Return_Value (Data, Result);
+   end On_Set_REAL_Theorem;
+
+   -------------------------
+   -- On_Add_REAL_Library --
+   -------------------------
+
+   procedure On_Add_REAL_Library
+     (Data : in out Callback_Data'Class; Command : String);
+
+   procedure On_Add_REAL_Library
+     (Data : in out Callback_Data'Class;
+      Command : String)
+   is
+      pragma Unreferenced (Command);
+      Result : constant Boolean :=
+        Ocarina.Utils.Add_REAL_Library (Nth_Arg (Data, 1, ""));
+
+   begin
+      Set_Return_Value (Data, Result);
+   end On_Add_REAL_Library;
+
    ----------------------
    -- On_Get_AADL_Root --
    ----------------------
@@ -185,6 +288,7 @@ package body Ocarina.Python_Cmd is
       pragma Unreferenced (Command);
    begin
       Ocarina.Utils.Generate (Nth_Arg (Data, 1, ""));
+      Set_Return_Value (Data, Errors.N_Errors = 0);
    end On_Generate;
 
    ---------------------
@@ -387,8 +491,6 @@ package body Ocarina.Python_Cmd is
    -- On_Get_Property_Sets --
    --------------------------
 
-   --  procedure Get_PropertyBinding return Node_List;
-
    procedure On_Get_Property_Sets
       (Data : in out Callback_Data'Class; Command : String);
 
@@ -505,7 +607,7 @@ package body Ocarina.Python_Cmd is
    is
       pragma Unreferenced (Command);
    begin
-      Ocarina.Utils.Get_Node_Id (Data, Nth_Arg (Data, 1, ""));
+      Get_Node_Id (Data, Nth_Arg (Data, 1, ""));
    end On_Get_Node_Id;
 
    ---------------------------
@@ -558,6 +660,54 @@ package body Ocarina.Python_Cmd is
       Ocarina.Lmp.Get_Instance_Name (Data,
          Node_Id (Integer'Value (Nth_Arg (Data, 1, ""))));
    end On_Get_Instance_Name;
+
+   -------------------------
+   -- On_Get_Source_Ports --
+   -------------------------
+
+   procedure On_Get_Source_Ports
+     (Data : in out Callback_Data'Class; Command : String);
+
+   procedure On_Get_Source_Ports
+     (Data : in out Callback_Data'Class;
+      Command : String)
+   is
+      pragma Unreferenced (Command);
+      N : constant Node_Id := Node_Id (Integer'Value (Nth_Arg (Data, 1, "")));
+      Result : List_Id;
+
+   begin
+      if not AINU.Is_Empty (Sources (N)) then
+         Result := Ocarina.Backends.Utils.Get_Source_Ports (N);
+         Set_Return_Value (Data, Item (First_Node (Result))'Img);
+      else
+         Set_Return_Value (Data, Integer'Image (0));
+      end if;
+   end On_Get_Source_Ports;
+
+   ------------------------------
+   -- On_Get_Destination_Ports --
+   ------------------------------
+
+   procedure On_Get_Destination_Ports
+     (Data : in out Callback_Data'Class; Command : String);
+
+   procedure On_Get_Destination_Ports
+     (Data : in out Callback_Data'Class;
+      Command : String)
+   is
+      pragma Unreferenced (Command);
+      N : constant Node_Id := Node_Id (Integer'Value (Nth_Arg (Data, 1, "")));
+      Result : List_Id;
+
+   begin
+      if not AINU.Is_Empty (Destinations (N)) then
+         Result := Ocarina.Backends.Utils.Get_Destination_Ports (N);
+         Set_Return_Value (Data, Item (First_Node (Result))'Img);
+      else
+         Set_Return_Value (Data, Integer'Image (0));
+      end if;
+   end On_Get_Destination_Ports;
 
    ------------------------------------
    -- Register_Scripts_And_Functions --
@@ -705,6 +855,16 @@ package body Ocarina.Python_Cmd is
         (Repo, "instantiate", 1, 1,
          Handler => On_Instantiate'Unrestricted_Access);
 
+      --  set_real_theorem() function
+      Register_Command
+        (Repo, "set_real_theorem", 1, 1,
+         Handler => On_Set_REAL_Theorem'Unrestricted_Access);
+
+      --  add_real_library() function
+      Register_Command
+        (Repo, "add_real_library", 1, 1,
+         Handler => On_Add_REAL_Library'Unrestricted_Access);
+
       --  getRoot() function
       Register_Command
         (Repo, "getRoot", 0, 0,
@@ -735,10 +895,23 @@ package body Ocarina.Python_Cmd is
         (Repo, "getNodeId", 1, 1,
          Handler => On_Get_Node_Id'Unrestricted_Access);
 
-      Repo := Ocarina.ME_AADL.AADL_Instances.Nodes.Python.
-         Register_Generated_Functions (Repo);
+      --  getSourcePorts() function
+      Register_Command
+        (Repo, "getSourcePorts", 1, 1,
+         Handler => On_Get_Source_Ports'Unrestricted_Access);
+
+      --  getDestinationPorts() function
+      Register_Command
+        (Repo, "getDestinationPorts", 1, 1,
+         Handler => On_Get_Destination_Ports'Unrestricted_Access);
+
+      --  Register functions generated from AADL declarative and
+      --  instance trees
 
       Repo := Ocarina.ME_AADL.AADL_Tree.Nodes.Python.
+         Register_Generated_Functions (Repo);
+
+      Repo := Ocarina.ME_AADL.AADL_Instances.Nodes.Python.
          Register_Generated_Functions (Repo);
 
       return Repo;
@@ -760,6 +933,8 @@ package body Ocarina.Python_Cmd is
       Ocarina.Initialize;
       Default_AADL_Version := Get_Default_AADL_Version;
       AADL_Version         := Ocarina.AADL_V2;
+      Auto_Load_Aadl_Files := True;
+
       Ocarina.Configuration.Init_Modules;
       Errors.Use_Exception_To_Exit;
 

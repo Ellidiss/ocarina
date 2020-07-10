@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
+--    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2017 ESA & ISAE.      --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -715,6 +715,53 @@ package body Ocarina.Backends.C_Common.Types is
                            (ATN.Entity (ATN.First_Node (Get_Base_Type (E)))));
                   Append_Node_To_List (N, CTN.Declarations (Current_File));
 
+               when Data_Bounded_Array =>
+                  Visit_Data_Instance
+                    (ATN.Entity (ATN.First_Node (Get_Base_Type (E))));
+
+                  --  In the case of a bounded array, we generate a C
+                  --  struct whose member are
+                  --
+                  --  1) an anonymous array whose size is the upper
+                  --     bound of the array, from "Dimension" property
+
+                  N :=
+                    Make_Member_Declaration
+                      (Defining_Identifier =>
+                         Make_Array_Declaration
+                           (Defining_Identifier =>
+                              Make_Defining_Identifier (PN (P_Data)),
+                            Array_Size =>
+                              Make_Literal
+                                (CV.New_Int_Value
+                                   (Data_Array_Size (1),
+                                    0,
+                                    10))),
+                       Used_Type =>
+                         Map_C_Defining_Identifier
+                           (ATN.Entity (ATN.First_Node (Get_Base_Type (E)))));
+                  Append_Node_To_List (N, Struct_Members);
+
+                  --  2) length, giving the actual size used as a
+                  --     32bits integer
+
+                  N :=
+                    Make_Member_Declaration
+                      (Defining_Identifier =>
+                         Make_Defining_Identifier (PN (P_Length)),
+                       Used_Type =>
+                         PHR.RE (RE_Int32_T));
+                  Append_Node_To_List (N, Struct_Members);
+
+                  N :=
+                    Make_Full_Type_Declaration
+                    (Defining_Identifier =>
+                       Map_C_Defining_Identifier (E),
+                     Type_Definition =>
+                       Make_Struct_Aggregate
+                       (Members => Struct_Members));
+                  Append_Node_To_List (N, CTN.Declarations (Current_File));
+
                when Data_String =>
                   N :=
                     Make_Full_Type_Declaration
@@ -799,9 +846,7 @@ package body Ocarina.Backends.C_Common.Types is
                               False),
                            True);
                      end if;
-                  elsif Get_Concurrency_Protocol (E) =
-                    Priority_Ceiling
-                  then
+                  elsif Get_Concurrency_Protocol (E) /= None_Specified then
 
                      --  Protected type that does not have struct members.
                      --  This piece of code is made to handle declaration
@@ -847,7 +892,7 @@ package body Ocarina.Backends.C_Common.Types is
                   end if;
             end case;
 
-            --  Mark the data type as being handled an append it to
+            --  Mark the data type as being handled and append it to
             --  the handled list.
 
             Set_Handling (E, By_Name, H_C_Type_Spec, N);
@@ -999,11 +1044,14 @@ package body Ocarina.Backends.C_Common.Types is
                --  (see ocarina-backends-po_hi_c-request.adb) are used.
 
                elsif AINU.Is_Process (Corresponding_Instance (C)) then
-                  S := First_Node (Subcomponents (Corresponding_Instance (C)));
-                  while Present (S) loop
-                     Visit_Component_Instance (Corresponding_Instance (S));
-                     S := Next_Node (S);
-                  end loop;
+                  if Present (Subcomponents (Corresponding_Instance (C))) then
+                     S :=
+                       First_Node (Subcomponents (Corresponding_Instance (C)));
+                     while Present (S) loop
+                        Visit_Component_Instance (Corresponding_Instance (S));
+                        S := Next_Node (S);
+                     end loop;
+                  end if;
                end if;
                C := Next_Node (C);
             end loop;
@@ -1030,9 +1078,7 @@ package body Ocarina.Backends.C_Common.Types is
                      if not AINU.Is_Empty (Subcomponents (Remote_Process)) then
                         S := First_Node (Subcomponents (Remote_Process));
                         while Present (S) loop
-
                            Visit (Corresponding_Instance (S));
-
                            S := Next_Node (S);
                         end loop;
                      end if;
@@ -1042,7 +1088,8 @@ package body Ocarina.Backends.C_Common.Types is
                     and then Kind (I) = K_Port_Spec_Instance
                     and then not AINU.Is_Empty (Destinations (I))
                   then
-                     F := First_Node (Destinations (I));
+                     F := First_Node (Get_Destination_Ports (I));
+
                      while Present (F) loop
                         J := Item (F);
 
@@ -1064,7 +1111,7 @@ package body Ocarina.Backends.C_Common.Types is
                if Kind (C) = K_Port_Spec_Instance
                  and then not AINU.Is_Empty (Sources (C))
                then
-                  D := First_Node (Sources (C));
+                  D := First_Node (Get_Source_Ports (C));
                   I := Item (D);
 
                   if Get_Category_Of_Component (Parent_Component (I)) =
@@ -1074,10 +1121,9 @@ package body Ocarina.Backends.C_Common.Types is
 
                      if not AINU.Is_Empty (Subcomponents (Remote_Process)) then
                         S := First_Node (Subcomponents (Remote_Process));
+
                         while Present (S) loop
-
                            Visit (Corresponding_Instance (S));
-
                            S := Next_Node (S);
                         end loop;
                      end if;
@@ -1085,15 +1131,15 @@ package body Ocarina.Backends.C_Common.Types is
 
                   if Present (I)
                     and then Kind (I) = K_Port_Spec_Instance
-                    and then not AINU.Is_Empty (Sources (I))
+                    and then not AINU.Is_Empty (Get_Source_Ports (I))
                   then
                      F := First_Node (Sources (I));
                      while Present (F) loop
                         J := Item (F);
-
                         if Present (J) then
                            Visit (Parent_Component (J));
                         end if;
+
                         F := Next_Node (F);
                      end loop;
                   end if;
@@ -1112,15 +1158,15 @@ package body Ocarina.Backends.C_Common.Types is
 
             while Present (Feature) loop
                if not AINU.Is_Empty (Sources (Feature)) then
-                  Src := First_Node (Sources (Feature));
+                  Src := First_Node (Get_Source_Ports (Feature));
 
                   while Present (Src) loop
-
                      Parent := Parent_Component (Item (Src));
 
                      if AINU.Is_Process (Parent) and then Parent /= E then
-                        if Get_Provided_Virtual_Bus_Class (Extra_Item (Src)) /=
-                          No_Node
+                        if Present (Extra_Item (Src))
+                          and then Present
+                            (Get_Provided_Virtual_Bus_Class (Extra_Item (Src)))
                         then
                            Visit
                              (Get_Provided_Virtual_Bus_Class
@@ -1135,7 +1181,7 @@ package body Ocarina.Backends.C_Common.Types is
                --  The destinations of F
 
                if not AINU.Is_Empty (Destinations (Feature)) then
-                  Dst := First_Node (Destinations (Feature));
+                  Dst := First_Node (Get_Destination_Ports (Feature));
 
                   while Present (Dst) loop
                      Parent := Parent_Component (Item (Dst));

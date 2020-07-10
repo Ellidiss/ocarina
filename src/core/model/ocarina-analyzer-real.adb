@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---       Copyright (C) 2009 Telecom ParisTech, 2010-2015 ESA & ISAE.        --
+--       Copyright (C) 2009 Telecom ParisTech, 2010-2018 ESA & ISAE.        --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -54,7 +54,7 @@ package body Ocarina.Analyzer.REAL is
    use Ocarina.Analyzer.REAL.Finder;
    use Ocarina.Analyzer.Messages;
    use Ocarina.Builder.REAL;
-   use Ocarina.ME_REAL;
+
    use Ocarina.ME_REAL.REAL_Tree.Nodes;
    use Ocarina.ME_REAL.REAL_Tree.Utils;
    use Ocarina.ME_REAL.REAL_Tree.Nutils;
@@ -148,7 +148,6 @@ package body Ocarina.Analyzer.REAL is
 
    procedure Register_Library_Theorems (REAL_Library : Node_Id) is
       pragma Assert (Kind (REAL_Library) = K_Root_Node);
-      package RNU renames Ocarina.ME_REAL.REAL_Tree.Nutils;
 
       N : Node;
       T : Node_Id;
@@ -210,6 +209,11 @@ package body Ocarina.Analyzer.REAL is
          end loop;
 
       else
+         --  Otherwise, iterate over Library theorems and fetch the
+         --  corresponding theorem.
+
+         RNU.Node_List.Init (To_Run_Theorem_List); --  Reset list of theorems
+
          for J in RNU.Node_List.First .. RNU.Node_List.Last (Library_Theorems)
          loop
             A := Library_Theorems.Table (J).Node;
@@ -232,8 +236,6 @@ package body Ocarina.Analyzer.REAL is
 
    function Analyze_Model (Root : Node_Id) return Boolean is
       use AIN;
-      use ATN;
-      use Ocarina.Analyzer.REAL;
       use Ocarina.REAL_Expander;
       use Ocarina.REAL_Expander.Flow_Analysis;
 
@@ -292,18 +294,18 @@ package body Ocarina.Analyzer.REAL is
       --  For non-used library theorems, we still analyze them,
       --  since they can be called directly through the API
 
-      --  for J in RNU.Node_List.First ..
-      --    RNU.Node_List.Last (Library_Theorems) loop
-      --     Node := Library_Theorems.Table (J).Node;
+      for J in RNU.Node_List.First ..
+        RNU.Node_List.Last (Library_Theorems) loop
+         Node := Library_Theorems.Table (J).Node;
 
-      --     RNU.REAL_Root := Node;
+         RNU.REAL_Root := Node;
 
-      --     if not Analyze_Sub_Theorem (RNU.REAL_Root) then
-      --        Display_Analyzer_Error
-      --          (Root, "could not proceed to theorem analysis");
-      --        return False;
-      --     end if;
-      --  end loop;
+         if not Analyze_Sub_Theorem (RNU.REAL_Root) then
+            Display_Analyzer_Error
+              (Root, "could not proceed to theorem analysis");
+            return False;
+         end if;
+      end loop;
 
       return True;
    end Analyze_Model;
@@ -353,8 +355,6 @@ package body Ocarina.Analyzer.REAL is
       Success : out Boolean)
    is
       pragma Assert (Kind (E) = K_Theorem);
-
-      use Ocarina.REAL_Expander;
 
       R      : constant List_Id := Required_Theorems (E);
       N, T   : Node_Id;
@@ -2767,7 +2767,6 @@ package body Ocarina.Analyzer.REAL is
       Result  : out Return_Type)
    is
       use ATN;
-      use Ocarina.REAL_Values;
 
       Packages : Node_Id := ATN.First_Node (ATN.Declarations (AADL_Tree));
       Fully_Qualified_Property_Name : Name_Id;

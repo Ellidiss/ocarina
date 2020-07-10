@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2015 ESA & ISAE.      --
+--    Copyright (C) 2008-2009 Telecom ParisTech, 2010-2020 ESA & ISAE.      --
 --                                                                          --
 -- Ocarina  is free software; you can redistribute it and/or modify under   --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -40,17 +40,16 @@ with Ocarina.ME_AADL.AADL_Tree.Nodes;   use Ocarina.ME_AADL.AADL_Tree.Nodes;
 
 with Ocarina.Files;                    use Ocarina.Files;
 with Ocarina.ME_AADL.AADL_Tree.Nutils; use Ocarina.ME_AADL.AADL_Tree.Nutils;
-with Ocarina.Options;                  use Ocarina.Options;
 with Ocarina.Parser;                   use Ocarina.Parser;
 with Ocarina.Property_Sets;            use Ocarina.Property_Sets;
 
-with GNAT.Command_Line; use GNAT.Command_Line;
 with GNAT.OS_Lib;       use GNAT.OS_Lib;
 
 package body Ocarina.FE_AADL.Parser is
 
    Language : constant String := "aadl";
    Suffix   : constant String := ".aadl";
+   First_Parsing     : Boolean := True;
 
    procedure Exit_On_Error (Error : Boolean; Reason : String);
 
@@ -72,34 +71,8 @@ package body Ocarina.FE_AADL.Parser is
    ----------
 
    procedure Init is
-      C : Character;
    begin
       First_Parsing     := True;
-      Add_Pre_Prop_Sets := False;
-
-      Initialize_Option_Scan;
-      loop
-         C := Getopt ("* y s f I:");
-         case C is
-            when ASCII.NUL =>
-               exit;
-
-            when 'y' =>
-               Auto_Load_AADL_Files := True;
-
-            when 'I' =>
-               Add_Library_Path (Parameter);
-
-            when 'f' | 's' =>
-               Add_Pre_Prop_Sets := True;
-
-            when others =>
-               null;
-
-         end case;
-      end loop;
-      Add_Library_Path (Get_Name_String (Default_Library_Path));
-
       Ocarina.Parser.Register_Parser (Language, Process'Access);
    end Init;
 
@@ -150,10 +123,6 @@ package body Ocarina.FE_AADL.Parser is
       return Nb_Items;
    end P_Items_List;
 
-   ------------------
-   -- P_Items_List --
-   ------------------
-
    function P_Items_List
      (Func      : P_Item_Function_Ptr;
       Container : Node_Id;
@@ -193,10 +162,6 @@ package body Ocarina.FE_AADL.Parser is
 
       return Items;
    end P_Items_List;
-
-   ------------------
-   -- P_Items_List --
-   ------------------
 
    function P_Items_List
      (Func         : P_Refinable_Item_Function_Ptr;
@@ -441,11 +406,14 @@ package body Ocarina.FE_AADL.Parser is
    function Process
      (AADL_Root : Node_Id;
       From      : Location;
-      To        : Location := No_Location) return Node_Id
+      To        : Location := No_Location;
+      Container : Node_Id  := No_Node) return Node_Id
    is
       New_Root  : Node_Id := AADL_Root;
       File_Name : Name_Id;
       Buffer    : Location;
+
+      pragma Unreferenced (Container);
 
    begin
       if First_Parsing then
